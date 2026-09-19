@@ -248,6 +248,9 @@ export const apiKeyService = {
     if (!rawSecret) {
       throw new Error('API Secret Key is required.')
     }
+    if (!payload.permissions || payload.permissions.length === 0) {
+      throw new Error('At least one permission is required.')
+    }
 
     const secretRef = `vault-ref-${Date.now()}-${generateRandomString(6)}`
     writeVaultSecret(secretRef, rawSecret)
@@ -259,12 +262,12 @@ export const apiKeyService = {
 
     const newCredential: CredentialMetadata = {
       id: `cred-${Date.now()}-${generateRandomString(6)}`,
-      name: payload.name.trim() || `${payload.provider} Provider Key`,
+      ...(payload.name?.trim() ? { name: payload.name.trim() } : {}),
       provider: payload.provider,
       credentialType: 'PROVIDER_API_KEY',
-      environment: payload.environment,
-      permissions: payload.permissions.length ? payload.permissions : ['read:project'],
-      scopes: payload.permissions.length ? payload.permissions : ['read:project'],
+      ...(payload.environment ? { environment: payload.environment } : {}),
+      permissions: payload.permissions,
+      scopes: payload.permissions,
       maskedValue: masked,
       maskedKey: masked,
       key: masked,
@@ -491,16 +494,18 @@ export const apiKeyService = {
         c.id === clean ||
         c.maskedValue === clean ||
         c.maskedKey === clean ||
-        c.name.toLowerCase() === clean.toLowerCase() ||
+        (c.name && c.name.toLowerCase() === clean.toLowerCase()) ||
+        c.provider.toLowerCase() === clean.toLowerCase() ||
         readVaultSecret(c.secretReference) === clean
     )
 
     if (match) {
+      const matchLabel = match.name || `${match.provider} Key`
       if (match.status === 'Revoked') {
-        return { valid: false, message: `Credential [${match.name}] has been revoked.` }
+        return { valid: false, message: `Credential [${matchLabel}] has been revoked.` }
       }
       if (match.expiresAt && new Date(match.expiresAt).getTime() < Date.now()) {
-        return { valid: false, message: `Credential [${match.name}] has expired.` }
+        return { valid: false, message: `Credential [${matchLabel}] has expired.` }
       }
 
       // Update last used
@@ -509,17 +514,18 @@ export const apiKeyService = {
       return {
         valid: true,
         credential: match,
-        message: `Connection verified with [${match.name}] (${match.provider} · ${match.credentialType === 'PLATFORM_TOKEN' ? 'Platform Token' : 'Provider Key'})`,
+        message: `Connection verified with [${matchLabel}] (${match.provider} · ${match.credentialType === 'PLATFORM_TOKEN' ? 'Platform Token' : 'Provider Key'})`,
       }
     }
 
     // Active credential fallback test
     const active = this.getActiveAiKey()
     if (active && (clean.startsWith('axr_') || clean.startsWith('AIza') || clean.startsWith('sk-') || clean.length >= 16)) {
+      const activeLabel = active.name || `${active.provider} Key`
       return {
         valid: true,
         credential: active,
-        message: `Live provider verification successful via [${active.name}] (${active.provider}).`,
+        message: `Live provider verification successful via [${activeLabel}] (${active.provider}).`,
       }
     }
 

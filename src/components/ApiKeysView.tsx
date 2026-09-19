@@ -73,7 +73,7 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
 
   const handleKeySaved = (cred: CredentialMetadata) => {
     reload()
-    showNotification(`API Key "${cred.name}" added successfully.`)
+    showNotification(`API Key "${cred.name || cred.provider}" added successfully.`)
   }
 
   const handleCopy = (text: string, id: string) => {
@@ -97,7 +97,7 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
 
       reload()
       setActiveModal('none')
-      showNotification(`Credential "${res.credential.name}" rotated successfully.`)
+      showNotification(`Credential "${res.credential.name || res.credential.provider}" rotated successfully.`)
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Rotation failed')
     }
@@ -107,12 +107,13 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
     const target = credentials.find(c => c.id === id)
     await apiKeyService.revokeCredential(id)
     reload()
-    showNotification(`Credential "${target?.name || 'Key'}" has been revoked.`)
+    showNotification(`Credential "${target?.name || target?.provider || 'Key'}" has been revoked.`)
   }
 
   const handleDelete = async (id: string) => {
     const target = credentials.find(c => c.id === id)
-    if (window.confirm(`Permanently remove "${target?.name || 'this credential'}" from your workspace?`)) {
+    const label = target?.name || (target ? `${target.provider} Key` : 'this credential')
+    if (window.confirm(`Permanently remove "${label}" from your workspace?`)) {
       await apiKeyService.deleteCredential(id)
       reload()
       showNotification('Credential deleted.')
@@ -133,7 +134,7 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
     const query = search.toLowerCase().trim()
     const matchesSearch =
       !query ||
-      item.name.toLowerCase().includes(query) ||
+      (item.name && item.name.toLowerCase().includes(query)) ||
       item.provider.toLowerCase().includes(query) ||
       item.credentialType.toLowerCase().includes(query) ||
       item.maskedValue.toLowerCase().includes(query)
@@ -332,7 +333,7 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
               >
                 {/* KEY NAME & MASKED TOKEN */}
                 <div className="key-identity">
-                  <span className="key-name">{item.name}</span>
+                  <span className="key-name">{item.name || `${item.provider} Key`}</span>
                   <div className="token-preview">
                     <code>{item.maskedValue}</code>
                     <button
@@ -375,9 +376,13 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
 
                 {/* ENVIRONMENT */}
                 <div>
-                  <span className={`env-badge env-${item.environment.toLowerCase()}`}>
-                    {item.environment}
-                  </span>
+                  {item.environment ? (
+                    <span className={`env-badge env-${item.environment.toLowerCase()}`}>
+                      {item.environment}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--muted)', fontSize: '11px' }}>—</span>
+                  )}
                 </div>
 
                 {/* SCOPES */}
@@ -567,7 +572,7 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
             <div className="modal-header">
               <div className="modal-header-text">
                 <span className="eyebrow">CREDENTIAL METADATA</span>
-                <h2>{selectedCredential.name}</h2>
+                <h2>{selectedCredential.name || `${selectedCredential.provider} Key`}</h2>
               </div>
               <button
                 type="button"
@@ -603,10 +608,12 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
                   <strong>{selectedCredential.provider}</strong>
                 </div>
 
-                <div className="detail-item">
-                  <small>Environment</small>
-                  <strong>{selectedCredential.environment}</strong>
-                </div>
+                {selectedCredential.environment && (
+                  <div className="detail-item">
+                    <small>Environment</small>
+                    <strong>{selectedCredential.environment}</strong>
+                  </div>
+                )}
 
                 <div className="detail-item">
                   <small>Status</small>
@@ -699,7 +706,7 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
             <div className="modal-header">
               <div className="modal-header-text">
                 <span className="eyebrow">CREDENTIAL ROTATION</span>
-                <h2>Rotate {selectedCredential.name}</h2>
+                <h2>Rotate {selectedCredential.name || `${selectedCredential.provider} Key`}</h2>
               </div>
               <button
                 type="button"

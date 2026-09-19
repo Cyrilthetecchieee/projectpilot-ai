@@ -26,15 +26,15 @@ export type ApiKeyStatus = 'Active' | 'Revoked'
 
 export interface CredentialMetadata {
   id: string
-  name: string
+  name?: string
   provider: ApiKeyProvider
   credentialType: CredentialType
-  environment: ApiKeyEnvironment
+  environment?: ApiKeyEnvironment
   permissions: ApiKeyScope[]
-  scopes: ApiKeyScope[]
+  scopes?: ApiKeyScope[]
   maskedValue: string
-  maskedKey: string
-  key: string
+  maskedKey?: string
+  key?: string
   secretReference: string
   createdBy: string
   createdAt: string
@@ -54,11 +54,11 @@ export interface GeneratePlatformTokenPayload {
 }
 
 export interface AddProviderApiKeyPayload {
-  name: string
   provider: ApiKeyProvider
   secretKey: string
-  environment: ApiKeyEnvironment
   permissions: ApiKeyScope[]
+  name?: string
+  environment?: ApiKeyEnvironment
   expiresInDays?: number | null
 }
 
