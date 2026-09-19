@@ -1,11 +1,22 @@
+from datetime import UTC, datetime
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from openai import APIStatusError, AuthenticationError, NotFoundError, RateLimitError
 
 from app.agents.architecture_agent import architecture_agent
+from app.agents.planner_agent import planner_agent
 from app.agents.requirement_agent import requirement_agent
 from app.ai.nvidia_client import nvidia_client
-from app.schemas import ArchitectureRequest, ArchitectureResponse, ProjectContext, RequirementsRequest, RequirementsResponse
+from app.schemas import (
+    ArchitectureRequest,
+    ArchitectureResponse,
+    PlannerRequest,
+    PlannerResponse,
+    ProjectContext,
+    RequirementsRequest,
+    RequirementsResponse,
+)
 
 app = FastAPI(title="ProjectPilot AI Backend", version="0.1.0")
 app.add_middleware(
@@ -20,6 +31,11 @@ projects: dict[str, ProjectContext] = {}
 requirements_store: dict[str, RequirementsResponse] = {}
 activity_store: dict[str, list[dict[str, object]]] = {}
 architecture_store: dict[str, ArchitectureResponse] = {}
+plan_store: dict[str, PlannerResponse] = {}
+
+
+def _now_iso() -> str:
+    return datetime.now(UTC).isoformat()
 
 
 @app.get("/health")
@@ -61,6 +77,7 @@ def analyze_requirements(project_id: str, request: RequirementsRequest) -> Requi
         "model": nvidia_client.model,
         "status": "completed",
         "duration_ms": duration_ms,
+        "timestamp": _now_iso(),
         "summary": response.summary,
     })
     return response
@@ -115,6 +132,7 @@ def generate_architecture(project_id: str, request: ArchitectureRequest) -> Arch
         "model": nvidia_client.model,
         "status": "completed",
         "duration_ms": duration_ms,
+        "timestamp": _now_iso(),
         "summary": response.summary,
     })
     return response
@@ -125,6 +143,70 @@ def get_architecture(project_id: str) -> ArchitectureResponse:
     result = architecture_store.get(project_id)
     if not result:
         raise HTTPException(status_code=404, detail="Architecture has not been generated")
+    return result
+
+
+@app.post("/api/projects/{project_id}/agents/plan", response_model=PlannerResponse)
+def generate_plan(project_id: str, request: PlannerRequest) -> PlannerResponse:
+    if request.project.id != project_id:
+        raise HTTPException(status_code=400, detail="Project payload ID does not match the URL")
+    requirements = requirements_store.get(project_id)
+    if not requirements:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "REQUIREMENTS_REQUIRED",
+                "message": "Analyze project requirements before generating an execution plan.",
+            },
+        )
+    architecture = architecture_store.get(project_id)
+    if not architecture:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "ARCHITECTURE_REQUIRED",
+                "message": "Generate project architecture before generating an execution plan.",
+            },
+        )
+    projects[project_id] = request.project
+    try:
+        analysis, duration_ms = planner_agent.analyze(request.project, requirements, architecture)
+    except AuthenticationError as error:
+        raise HTTPException(status_code=502, detail="NVIDIA authentication failed") from error
+    except RateLimitError as error:
+        raise HTTPException(status_code=429, detail="NVIDIA rate limit or quota issue") from error
+    except NotFoundError as error:
+        raise HTTPException(status_code=502, detail="Configured Nemotron model is unavailable") from error
+    except APIStatusError as error:
+        raise HTTPException(status_code=502, detail="NVIDIA provider request failed") from error
+    except (RuntimeError, ValueError) as error:
+        raise HTTPException(status_code=502, detail=str(error)) from error
+
+    response = PlannerResponse(
+        **analysis.model_dump(),
+        project_id=project_id,
+        model=nvidia_client.model,
+        duration_ms=duration_ms,
+    )
+    plan_store[project_id] = response
+    activity_store.setdefault(project_id, []).insert(0, {
+        "agent": "Planner Agent",
+        "action": "Generate Execution Plan",
+        "provider": "NVIDIA",
+        "model": nvidia_client.model,
+        "status": "completed",
+        "duration_ms": duration_ms,
+        "timestamp": _now_iso(),
+        "summary": f"{len(analysis.milestones)} milestones, {len(analysis.tasks)} tasks planned",
+    })
+    return response
+
+
+@app.get("/api/projects/{project_id}/plan", response_model=PlannerResponse)
+def get_plan(project_id: str) -> PlannerResponse:
+    result = plan_store.get(project_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Execution plan has not been generated")
     return result
 
 
