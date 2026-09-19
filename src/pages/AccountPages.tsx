@@ -492,10 +492,10 @@ export function ProfileMenu({ user, onLogout }: { user: MockUser; onLogout: () =
           <div className="profile-dropdown">
             <div className="profile-dropdown-head">
               <Avatar user={user} />
-              <div>
-                <strong>{user.name}</strong>
-                <span>{user.role}</span>
-                <small title={user.email}>{user.email}</small>
+              <div className="profile-dropdown-meta">
+                <strong className="profile-name">{user.name}</strong>
+                <span className="profile-role">{user.role}</span>
+                <small className="profile-email" title={user.email}>{user.email}</small>
               </div>
             </div>
 

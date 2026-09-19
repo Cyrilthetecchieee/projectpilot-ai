@@ -1,4 +1,4 @@
-import { useState, type ComponentType, type FormEvent } from 'react'
+import { useEffect, useState, type ComponentType, type FormEvent } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { Activity, ArrowRight, BrainCircuit, Check, ChevronDown, ChevronRight, CircleAlert, CircleDot, ClipboardCheck, Cloud, Code2, Cpu, FileText, Hexagon, Key, LayoutDashboard, Menu, Network, Play, Plus, RefreshCw, Search, ShieldCheck, Sparkles, TestTube2, X } from 'lucide-react'
 import { projectService } from './services/projectService'
@@ -10,6 +10,7 @@ import { useAuth } from './context/AuthContext'
 import { ApiKeysView } from './components/ApiKeysView'
 import { InitializationPage } from './pages/InitializationPage'
 import { EngineeringAgentsSection } from './components/EngineeringAgentsSection'
+import { WorkspaceSearchModal } from './components/WorkspaceSearchModal'
 import './App.css'
 
 const icons = { Overview: LayoutDashboard, Requirements: FileText, Architecture: Network, 'Execution Plan': ClipboardCheck, 'Risks & Gaps': CircleAlert, Testing: TestTube2, 'Agent Activity': Activity, 'API Keys': Key }
@@ -38,7 +39,62 @@ function Preview() { return <div className="preview-wrap"><div className="previe
 
 function NewProject() { const navigate = useNavigate(); const [tech, setTech] = useState(['ESP32', 'React', 'Firebase']); const [value, setValue] = useState({ name: '', idea: '', objective: '', type: 'IoT / Embedded', constraints: '', timeline: '2–3 Months', stage: 'Idea' }); const [newTech, setNewTech] = useState(''); const submit = (e: FormEvent) => { e.preventDefault(); if (!value.name || !value.idea || !value.objective) return; const project = projectService.createProject({ ...value, technologies: tech }); navigate(`/project/${project.id}/initializing`) }; return <main className="onboarding"><header className="marketing-nav"><Logo /><span className="muted">NEW PROJECT <span className="slash">/</span> WORKSPACE SETUP</span><Link className="text-link" to="/">Cancel</Link></header><div className="form-wrap"><div className="form-heading"><Badge tone="lime">01 / PROJECT CONTEXT</Badge><h1>Let's understand<br />what you're building.</h1><p>Give ProjectPilot enough context to create your engineering workspace.</p></div><form onSubmit={submit} className="project-form"><label>Project Name<input required value={value.name} onChange={e => setValue({ ...value, name: e.target.value })} placeholder="Smart Helmet Safety System" /></label><label>Project Idea / Problem<textarea required value={value.idea} onChange={e => setValue({ ...value, idea: e.target.value })} placeholder="Describe the engineering problem and the solution you want to build..." /></label><label>Primary Objective<textarea required value={value.objective} onChange={e => setValue({ ...value, objective: e.target.value })} placeholder="What must this project achieve?" /></label><div className="form-grid"><label>Project Type<select value={value.type} onChange={e => setValue({ ...value, type: e.target.value })}>{['IoT / Embedded', 'Web Application', 'Mobile Application', 'AI / ML', 'Automation', 'Robotics', 'Software System', 'Other'].map(x => <option key={x}>{x}</option>)}</select></label><label>Timeline<select value={value.timeline} onChange={e => setValue({ ...value, timeline: e.target.value })}>{['1 Week', '2 Weeks', '1 Month', '2–3 Months', 'Custom'].map(x => <option key={x}>{x}</option>)}</select></label></div><label>Available Technologies<div className="chips">{tech.map(item => <span className="chip" key={item}>{item}<button type="button" onClick={() => setTech(tech.filter(x => x !== item))}>×</button></span>)}<input value={newTech} onChange={e => setNewTech(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newTech) { e.preventDefault(); setTech([...tech, newTech]); setNewTech('') } }} placeholder="Add technology + Enter" /></div></label><label>Constraints<textarea value={value.constraints} onChange={e => setValue({ ...value, constraints: e.target.value })} placeholder="Limited hardware access, four-week timeline, student budget." /></label><label>Current Stage<select value={value.stage} onChange={e => setValue({ ...value, stage: e.target.value })}>{['Idea', 'Planning', 'Development', 'Testing', 'Almost Complete'].map(x => <option key={x}>{x}</option>)}</select></label><div className="form-actions"><Link className="btn btn-secondary" to="/">Cancel</Link><Button type="submit" icon={ArrowRight}>Create Project Workspace</Button></div></form></div></main> }
 
-function ProjectShell({ children, project }: { children: React.ReactNode; project: Project }) { const location = useLocation(); const [open, setOpen] = useState(false); const navigate = useNavigate(); return <div className="app-shell"><aside className={`sidebar ${open ? 'sidebar-open' : ''}`}><div className="side-head"><Logo /><button className="icon-btn close-menu" onClick={() => setOpen(false)}><X size={18} /></button></div><div className="project-switcher"><span className="project-kicker">CURRENT PROJECT</span><strong>{project.name}</strong><span>{project.type}</span>{project.id === 'smart-helmet' && <Badge tone="lime">DEMO WORKSPACE</Badge>}</div><nav className="side-nav">{Object.entries(icons).map(([label, I]) => { const route = label === 'Overview' ? '' : routeNames[label]; const href = `/project/${project.id}${route ? `/${route}` : ''}`; return <Link onClick={() => setOpen(false)} className={location.pathname === href || (label === 'Overview' && location.pathname === `/project/${project.id}`) ? 'active' : ''} to={href} key={label}><I size={17} />{label}</Link> })}</nav><div className="side-footer"><EngineState /><button className="side-settings" onClick={() => navigate(`/project/${project.id}/api-keys`)}><Key size={15} />API Keys & Access</button><button className="back-home" onClick={() => navigate('/')}><ArrowRight size={15} />Exit workspace</button></div></aside><div className="workspace"><header className="topbar"><button className="icon-btn menu-btn" onClick={() => setOpen(true)}><Menu size={20} /></button><div className="breadcrumbs"><span>Projects</span><ChevronRight size={14} /><b>{project.name}</b></div><div className="top-actions"><div className="search"><Search size={15} /><span>Search workspace</span><kbd>⌘ K</kbd></div><Button secondary icon={RefreshCw} onClick={() => navigate(`/project/${project.id}/risks`)}>Run Project Review</Button><WorkspaceProfile /></div></header><main className="workspace-main">{children}</main></div></div> }
+function ProjectShell({ children, project }: { children: React.ReactNode; project: Project }) {
+  const location = useLocation();
+  const [open, setOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return (
+    <div className="app-shell">
+      <aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
+        <div className="side-head"><Logo /><button className="icon-btn close-menu" onClick={() => setOpen(false)}><X size={18} /></button></div>
+        <div className="project-switcher"><span className="project-kicker">CURRENT PROJECT</span><strong>{project.name}</strong><span>{project.type}</span>{project.id === 'smart-helmet' && <Badge tone="lime">DEMO WORKSPACE</Badge>}</div>
+        <nav className="side-nav">{Object.entries(icons).map(([label, I]) => { const route = label === 'Overview' ? '' : routeNames[label]; const href = `/project/${project.id}${route ? `/${route}` : ''}`; return <Link onClick={() => setOpen(false)} className={location.pathname === href || (label === 'Overview' && location.pathname === `/project/${project.id}`) ? 'active' : ''} to={href} key={label}><I size={17} />{label}</Link> })}</nav>
+        <div className="side-footer"><EngineState /><button className="side-settings" onClick={() => navigate(`/project/${project.id}/api-keys`)}><Key size={15} />API Keys & Access</button><button className="back-home" onClick={() => navigate('/')}><ArrowRight size={15} />Exit workspace</button></div>
+      </aside>
+      <div className="workspace">
+        <header className="topbar">
+          <button className="icon-btn menu-btn" onClick={() => setOpen(true)}><Menu size={20} /></button>
+          <div className="breadcrumbs"><span>Projects</span><ChevronRight size={14} /><b>{project.name}</b></div>
+          <div className="top-actions">
+            <button
+              type="button"
+              className="search search-trigger-btn"
+              onClick={() => setSearchOpen(true)}
+              title="Search workspace (Cmd+K / Ctrl+K)"
+              aria-label="Search workspace"
+            >
+              <Search size={15} />
+              <span>Search workspace</span>
+              <kbd>⌘ K</kbd>
+            </button>
+            <Button secondary icon={RefreshCw} onClick={() => navigate(`/project/${project.id}/risks`)}>Run Project Review</Button>
+            <WorkspaceProfile />
+          </div>
+        </header>
+        <main className="workspace-main">{children}</main>
+      </div>
+
+      <WorkspaceSearchModal
+        isOpen={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        project={project}
+      />
+    </div>
+  );
+}
 function useProject() { const { id = 'smart-helmet' } = useParams(); const [project, setProject] = useState<Project | undefined>(() => projectService.getProject(id)); const refresh = () => setProject(projectService.getProject(id)); return { project, refresh } }
 function PageHeader({ eyebrow, title, text, action }: { eyebrow?: string; title: string; text?: string; action?: React.ReactNode }) { return <div className="page-header"><div>{eyebrow && <span className="eyebrow">{eyebrow}</span>}<h1>{title}</h1>{text && <p>{text}</p>}</div>{action}</div> }
 function ProjectRoute() { const { project, refresh } = useProject(); const { id = 'smart-helmet' } = useParams(); const { isAuthenticated } = useAuth(); if (!isAuthenticated && id !== 'smart-helmet') return <Navigate to="/login" replace state={{ from: `/project/${id}` }} />; if (!project) return <Navigate to="/new-project" />; return <ProjectShell project={project}><Routes><Route path="initializing" element={<InitializationPage project={project} />} /><Route index element={<Dashboard project={project} />} /><Route path="requirements" element={<Requirements project={project} refresh={refresh} />} /><Route path="architecture" element={<Architecture project={project} refresh={refresh} />} /><Route path="tasks" element={<Tasks project={project} refresh={refresh} />} /><Route path="risks" element={<Risks project={project} refresh={refresh} />} /><Route path="testing" element={<Testing project={project} refresh={refresh} />} /><Route path="activity" element={<ActivityPage project={project} />} /><Route path="api-keys" element={<ApiKeysView project={project} />} /></Routes></ProjectShell> }
