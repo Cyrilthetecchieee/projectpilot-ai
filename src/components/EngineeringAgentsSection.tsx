@@ -274,9 +274,8 @@ export function EngineeringAgentsSection() {
 
       {/* 5-Column Agent Grid - Clicking opens screen popup briefing on the same page */}
       <div className="agent-grid" role="list">
-        {AGENTS.map((agent, index) => {
+        {AGENTS.map(agent => {
           const Icon = agent.icon
-          const isLast = index === AGENTS.length - 1
 
           return (
             <div
@@ -294,15 +293,11 @@ export function EngineeringAgentsSection() {
               aria-label={`Open on-screen briefing for ${agent.title}`}
               title="Click to view on-screen agent briefing"
             >
-              {/* Top row: Icon Box on left, Step & Briefing tag on right */}
+              {/* Top row: Icon Box on left */}
               <div className="agent-tile-top">
                 <span className="icon-box" aria-hidden="true">
                   <Icon size={20} />
                 </span>
-                <div className="agent-tile-badges">
-                  <span className="step-badge">{agent.step}</span>
-                  <span className="briefing-pill-tag">Briefing</span>
-                </div>
               </div>
 
               {/* Card Body */}
@@ -327,13 +322,6 @@ export function EngineeringAgentsSection() {
                   <ArrowRight size={14} className="agent-arrow-svg" />
                 </span>
               </div>
-
-              {/* Inter-card Pipeline Flow Arrow on right border (only between cards, not on last) */}
-              {!isLast && (
-                <div className="inter-card-arrow" aria-hidden="true" title="Hands off to next stage">
-                  <ChevronRight size={13} />
-                </div>
-              )}
             </div>
           )
         })}
