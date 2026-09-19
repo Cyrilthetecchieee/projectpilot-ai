@@ -3,7 +3,7 @@ import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate,
 import { Activity, ArrowRight, BrainCircuit, Check, ChevronDown, ChevronRight, CircleAlert, CircleDot, ClipboardCheck, Cloud, Code2, Cpu, FileText, Hexagon, Key, LayoutDashboard, Menu, Network, Play, Plus, RefreshCw, Search, ShieldCheck, Sparkles, TestTube2, X } from 'lucide-react'
 import { projectService } from './services/projectService'
 import { agentService } from './services/agentService'
-import type { Project, Risk, Task, TaskStatus } from './types'
+import type { Project, Risk } from './types'
 import { AgentSimulationState, EngineState, TechnologyBadge, TechnologyFooter } from './components/TechnologyAttribution'
 import { Avatar, LoginPage, ProfileMenu, ProfilePage, ProtectedRoute, SettingsPage, SignupPage } from './pages/AccountPages'
 import { useAuth } from './context/AuthContext'
@@ -36,16 +36,22 @@ function Landing() {
 
 function SectionIntro({ eyebrow, title, text }: { eyebrow: string; title: string; text?: string }) { return <div className="section-intro"><span className="eyebrow">{eyebrow}</span><h2>{title}</h2>{text && <p>{text}</p>}</div> }
 function TechnologyCard({ title, label, text, capabilities, icon: Icon }: { title: string; label: string; text: string; capabilities: string[]; icon: Icon }) { return <article className="technology-card panel"><div className="technology-card-head"><span className="icon-box"><Icon size={20} /></span><div><span className="eyebrow">{label}</span><h3>{title}</h3></div></div><p>{text}</p><div className="capability-list">{capabilities.map(capability => <span key={capability}><Check size={12} />{capability}</span>)}</div><TechnologyBadge compact /></article> }
-function WorkspaceProfile() { const { user, logout } = useAuth(); const navigate = useNavigate(); if (!user) return <Link className="avatar" to="/login">?</Link>; return <ProfileMenu user={user} onLogout={() => { logout(); navigate('/') }} /> }
+function WorkspaceProfile() { const { user, logout } = useAuth(); const navigate = useNavigate();
+
+ if (!user) return <Link className="avatar" to="/login">?</Link>; return <ProfileMenu user={user} onLogout={() => { logout(); navigate('/') }} /> }
 function Preview() { return <div className="preview-wrap"><div className="preview-label"><span className="status-dot" />LIVE WORKSPACE PREVIEW</div><div className="preview"><div className="preview-top"><Logo /><span>•••</span></div><div className="preview-body"><aside><div className="preview-side-active"><LayoutDashboard size={13} /></div>{[FileText, Network, ClipboardCheck, CircleAlert, TestTube2].map((I, i) => <I key={i} size={14} />)}</aside><div className="preview-content"><div className="preview-heading"><div><small>PROJECT OVERVIEW</small><h3>Smart Helmet Safety System</h3></div><Badge tone="lime">ACTIVE</Badge></div><div className="preview-stat"><span>PROJECT COMPLETION</span><b>42%</b><Progress value={42} /></div><div className="preview-next"><small>NEXT RECOMMENDED ACTION</small><h4>Define sensor failure and fallback states</h4><div><Badge tone="high">HIGH</Badge><span>30–45 min</span></div></div><div className="preview-bars"><span /><span /><span /></div></div></div></div></div> }
 
-function NewProject() { const navigate = useNavigate(); const [tech, setTech] = useState(['ESP32', 'React', 'Firebase']); const [value, setValue] = useState({ name: '', idea: '', objective: '', type: 'IoT / Embedded', constraints: '', timeline: '2–3 Months', stage: 'Idea' }); const [newTech, setNewTech] = useState(''); const submit = (e: FormEvent) => { e.preventDefault(); if (!value.name || !value.idea || !value.objective) return; const project = projectService.createProject({ ...value, technologies: tech }); navigate(`/project/${project.id}/initializing`) }; return <main className="onboarding"><header className="marketing-nav"><Logo /><span className="muted">NEW PROJECT <span className="slash">/</span> WORKSPACE SETUP</span><Link className="text-link" to="/">Cancel</Link></header><div className="form-wrap"><div className="form-heading"><Badge tone="lime">01 / PROJECT CONTEXT</Badge><h1>Let's understand<br />what you're building.</h1><p>Give ProjectPilot enough context to create your engineering workspace.</p></div><form onSubmit={submit} className="project-form"><label>Project Name<input required value={value.name} onChange={e => setValue({ ...value, name: e.target.value })} placeholder="Smart Helmet Safety System" /></label><label>Project Idea / Problem<textarea required value={value.idea} onChange={e => setValue({ ...value, idea: e.target.value })} placeholder="Describe the engineering problem and the solution you want to build..." /></label><label>Primary Objective<textarea required value={value.objective} onChange={e => setValue({ ...value, objective: e.target.value })} placeholder="What must this project achieve?" /></label><div className="form-grid"><label>Project Type<select value={value.type} onChange={e => setValue({ ...value, type: e.target.value })}>{['IoT / Embedded', 'Web Application', 'Mobile Application', 'AI / ML', 'Automation', 'Robotics', 'Software System', 'Other'].map(x => <option key={x}>{x}</option>)}</select></label><label>Timeline<select value={value.timeline} onChange={e => setValue({ ...value, timeline: e.target.value })}>{['1 Week', '2 Weeks', '1 Month', '2–3 Months', 'Custom'].map(x => <option key={x}>{x}</option>)}</select></label></div><label>Available Technologies<div className="chips">{tech.map(item => <span className="chip" key={item}>{item}<button type="button" onClick={() => setTech(tech.filter(x => x !== item))}>×</button></span>)}<input value={newTech} onChange={e => setNewTech(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newTech) { e.preventDefault(); setTech([...tech, newTech]); setNewTech('') } }} placeholder="Add technology + Enter" /></div></label><label>Constraints<textarea value={value.constraints} onChange={e => setValue({ ...value, constraints: e.target.value })} placeholder="Limited hardware access, four-week timeline, student budget." /></label><label>Current Stage<select value={value.stage} onChange={e => setValue({ ...value, stage: e.target.value })}>{['Idea', 'Planning', 'Development', 'Testing', 'Almost Complete'].map(x => <option key={x}>{x}</option>)}</select></label><div className="form-actions"><Link className="btn btn-secondary" to="/">Cancel</Link><Button type="submit" icon={ArrowRight}>Create Project Workspace</Button></div></form></div></main> }
+function NewProject() { const navigate = useNavigate();
+
+ const [tech, setTech] = useState(['ESP32', 'React', 'Firebase']); const [value, setValue] = useState({ name: '', idea: '', objective: '', type: 'IoT / Embedded', constraints: '', timeline: '2–3 Months', stage: 'Idea' }); const [newTech, setNewTech] = useState(''); const submit = (e: FormEvent) => { e.preventDefault(); if (!value.name || !value.idea || !value.objective) return; const project = projectService.createProject({ ...value, technologies: tech }); navigate(`/project/${project.id}/initializing`) }; return <main className="onboarding"><header className="marketing-nav"><Logo /><span className="muted">NEW PROJECT <span className="slash">/</span> WORKSPACE SETUP</span><Link className="text-link" to="/">Cancel</Link></header><div className="form-wrap"><div className="form-heading"><Badge tone="lime">01 / PROJECT CONTEXT</Badge><h1>Let's understand<br />what you're building.</h1><p>Give ProjectPilot enough context to create your engineering workspace.</p></div><form onSubmit={submit} className="project-form"><label>Project Name<input required value={value.name} onChange={e => setValue({ ...value, name: e.target.value })} placeholder="Smart Helmet Safety System" /></label><label>Project Idea / Problem<textarea required value={value.idea} onChange={e => setValue({ ...value, idea: e.target.value })} placeholder="Describe the engineering problem and the solution you want to build..." /></label><label>Primary Objective<textarea required value={value.objective} onChange={e => setValue({ ...value, objective: e.target.value })} placeholder="What must this project achieve?" /></label><div className="form-grid"><label>Project Type<select value={value.type} onChange={e => setValue({ ...value, type: e.target.value })}>{['IoT / Embedded', 'Web Application', 'Mobile Application', 'AI / ML', 'Automation', 'Robotics', 'Software System', 'Other'].map(x => <option key={x}>{x}</option>)}</select></label><label>Timeline<select value={value.timeline} onChange={e => setValue({ ...value, timeline: e.target.value })}>{['1 Week', '2 Weeks', '1 Month', '2–3 Months', 'Custom'].map(x => <option key={x}>{x}</option>)}</select></label></div><label>Available Technologies<div className="chips">{tech.map(item => <span className="chip" key={item}>{item}<button type="button" onClick={() => setTech(tech.filter(x => x !== item))}>×</button></span>)}<input value={newTech} onChange={e => setNewTech(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && newTech) { e.preventDefault(); setTech([...tech, newTech]); setNewTech('') } }} placeholder="Add technology + Enter" /></div></label><label>Constraints<textarea value={value.constraints} onChange={e => setValue({ ...value, constraints: e.target.value })} placeholder="Limited hardware access, four-week timeline, student budget." /></label><label>Current Stage<select value={value.stage} onChange={e => setValue({ ...value, stage: e.target.value })}>{['Idea', 'Planning', 'Development', 'Testing', 'Almost Complete'].map(x => <option key={x}>{x}</option>)}</select></label><div className="form-actions"><Link className="btn btn-secondary" to="/">Cancel</Link><Button type="submit" icon={ArrowRight}>Create Project Workspace</Button></div></form></div></main> }
 
 function ProjectShell({ children, project }: { children: React.ReactNode; project: Project }) {
   const location = useLocation();
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const navigate = useNavigate();
+
+
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -101,6 +107,8 @@ function PageHeader({ eyebrow, title, text, action }: { eyebrow?: string; title:
 function ProjectRoute() { const { project, refresh } = useProject(); const { id = 'smart-helmet' } = useParams(); const { isAuthenticated } = useAuth(); if (!isAuthenticated && id !== 'smart-helmet') return <Navigate to="/login" replace state={{ from: `/project/${id}` }} />; if (!project) return <Navigate to="/new-project" />; return <ProjectShell project={project}><Routes><Route path="initializing" element={<InitializationPage project={project} />} /><Route index element={<Dashboard project={project} refresh={refresh} />} /><Route path="requirements" element={<Requirements project={project} refresh={refresh} />} /><Route path="architecture" element={<Architecture project={project} refresh={refresh} />} /><Route path="tasks" element={<ExecutionPlanView project={project} refresh={refresh} />} /><Route path="risks" element={<Risks project={project} refresh={refresh} />} /><Route path="testing" element={<Testing project={project} refresh={refresh} />} /><Route path="activity" element={<ActivityPage project={project} />} /><Route path="api-keys" element={<ApiKeysView project={project} />} /></Routes></ProjectShell> }
 function Dashboard({ project, refresh }: { project: Project; refresh: () => void }) {
   const navigate = useNavigate();
+
+
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const completed = project.tasks.filter(t => t.status === 'Completed').length;
   return (
@@ -243,10 +251,126 @@ function AgentProgress({ title, steps, realProvider = false, agentName }: { titl
 function Architecture({ project, refresh }: { project: Project; refresh: () => void }) { const [running, setRunning] = useState(false); const [error, setError] = useState(''); const [toast, setToast] = useState(''); const generate = async () => { setRunning(true); setError(''); try { const result = await agentService.generateArchitecture(project); const current = projectService.getProject(project.id)!; projectService.saveProject({ ...current, architecture: result.architecture, architectureConnections: result.analysis.connections, architectureDataFlow: result.analysis.data_flow, architectureDecisions: result.analysis.architecture_decisions, architectureGaps: result.analysis.architecture_gaps.map(gap => ({ title: gap.title, severity: priorityLabel(gap.severity), reason: gap.reason, recommendedAction: gap.recommended_action })), activity: [{ id: `a-${Date.now()}`, agent: 'Architecture Agent', action: 'Generate Architecture', status: 'Completed', duration: `${(result.analysis.duration_ms / 1000).toFixed(1)}s`, createdAt: 'Just now', provider: result.analysis.provider, model: result.analysis.model, summary: `${result.architecture.length} components generated` }, ...current.activity] }); setToast('Architecture generated from validated requirements.'); refresh() } catch (requestError) { setError(requestError instanceof Error ? requestError.message : 'Architecture generation could not be completed.') } finally { setRunning(false) } }; const connections = project.architectureConnections || []; const first = project.architecture[0]; return <><PageHeader eyebrow="SYSTEM DESIGN" title="System Architecture" text="Visual representation of components and data flow." action={<Button onClick={generate} icon={running ? RefreshCw : Sparkles}>{running ? 'Designing...' : 'Generate Architecture'}</Button>} />{running && <AgentProgress realProvider title="Architecture Agent is designing your project..." steps={['Loading persisted requirements...', 'Nemotron is mapping system components...', 'Validating interfaces and traceability...', 'Saving architecture artifacts...']} />}{error && <div className="agent-error panel"><strong>Architecture Agent could not complete the analysis.</strong><span>{error}</span><button className="btn btn-secondary" onClick={generate}>Retry</button></div>}{!running && <><div className="architecture-layout"><div className="panel diagram-panel"><div className="panel-heading"><div><h2>System Components</h2><span>{connections.length} connections · generated from requirements</span></div><Badge tone="lime">{project.architecture.length ? 'GENERATED' : 'NOT GENERATED'}</Badge></div>{project.architecture.length ? <div className="diagram">{project.architecture.map((node, i) => <div className="diagram-item" key={node.id}><div className="architecture-node"><span className="node-index">{String(i + 1).padStart(2, '0')}</span><div><b>{node.name}</b><span>{node.technology || node.type || node.status}</span></div><ChevronRight size={17} /></div>{i < project.architecture.length - 1 && <div className="connector"><span /></div>}</div>)}</div> : <EmptyArchitecture onGenerate={generate} />}</div><div className="side-stack"><div className="panel"><div className="panel-heading"><h2>Component details</h2><Code2 size={17} /></div>{first ? <div className="component-detail"><span className="icon-box"><Cpu size={18} /></span><h3>{first.name}</h3><Badge tone="lime">{first.status}</Badge><small>RESPONSIBILITY</small><p>{first.responsibility}</p><small>INPUTS</small><div className="tag-list">{first.inputs.map(input => <span key={input}>{input}</span>)}</div><small>OUTPUTS</small><div className="tag-list">{first.outputs.map(output => <span key={output}>{output}</span>)}</div></div> : <p className="architecture-empty-copy">Generate architecture to inspect the first system component.</p>}</div><div className="panel"><span className="eyebrow">ARCHITECTURE GAPS</span>{project.architectureGaps?.length ? project.architectureGaps.map(gap => <div className="architecture-gap" key={gap.title}><h3>{gap.title}</h3><p>{gap.reason}</p><Badge tone={gap.severity}>{gap.severity}</Badge><small>{gap.recommendedAction}</small></div>) : <p className="architecture-empty-copy">No architecture gaps recorded yet.</p>}</div></div></div><div className="architecture-detail-grid"><ArchitectureConnections connections={connections} components={project.architecture} /><div className="panel detail-panel"><span className="eyebrow">DATA FLOW</span>{(project.architectureDataFlow || []).map(flow => <div className="flow-row" key={flow.step}><b>{String(flow.step).padStart(2, '0')}</b><span>{flow.description}</span></div>)}<span className="eyebrow detail-eyebrow">ARCHITECTURE DECISIONS</span>{(project.architectureDecisions || []).map(decision => <div className="decision-row" key={decision.decision}><b>{decision.decision}</b><span>{decision.reason}</span></div>)}</div></div></>}{toast && <Toast message={toast} onClose={() => setToast('')} />}</> }
 function EmptyArchitecture({ onGenerate }: { onGenerate: () => void }) { return <div className="architecture-empty"><Network size={24} /><h3>No architecture generated yet.</h3><p>Let the Architecture Agent translate the validated requirements into components and interfaces.</p><Button onClick={onGenerate} icon={Sparkles}>Generate Architecture</Button></div> }
 function ArchitectureConnections({ connections, components }: { connections: { source: string; target: string; interface: string; protocol: string; data: string; description: string }[]; components: Project['architecture'] }) { const label = (id: string) => components.find(component => component.id === id)?.name || id; return <div className="panel detail-panel"><div className="panel-heading"><div><span className="eyebrow">CONNECTIONS & INTERFACES</span><span>Traceable system boundaries</span></div><Network size={17} /></div>{connections.length ? connections.map(connection => <div className="connection-row" key={`${connection.source}-${connection.target}`}><div><b>{label(connection.source)}</b><ChevronRight size={14} /><b>{label(connection.target)}</b></div><span>{connection.interface || connection.protocol || 'Interface pending'} · {connection.data}</span><p>{connection.description}</p></div>) : <p className="architecture-empty-copy">No connections returned yet.</p>}</div> }
-const Tasks = ExecutionPlanView
-function Risks({ project, refresh }: { project: Project; refresh: () => void }) { const [running, setRunning] = useState(false); const [toast, setToast] = useState(''); const [filter, setFilter] = useState('All'); const review = async () => { setRunning(true); await new Promise(r => setTimeout(r, 1500)); projectService.addActivity({ id: `a-${Date.now()}`, agent: 'Reviewer Agent', action: 'Detected 4 engineering gaps', status: 'Completed', duration: '3.1s', createdAt: 'Just now' }, project.id); setRunning(false); setToast('Project review completed.'); refresh() }; const visible = project.risks.filter(r => filter === 'All' || filter === 'Resolved' ? (filter === 'Resolved' ? r.resolved : true) : r.severity === filter); return <><PageHeader eyebrow="CONTINUOUS REVIEW" title="Engineering Review" text="ProjectPilot continuously reviews your project for unresolved risks, assumptions and design gaps." action={<Button onClick={review} icon={RefreshCw}>Run Project Review</Button>} />{running ? <AgentProgress title="Reviewer Agent is inspecting your project..." steps={['Requirements', 'Architecture', 'Execution Plan', 'Test Coverage']} /> : <><div className="filter-row">{['All', 'Critical', 'High', 'Medium', 'Resolved'].map(x => <button className={filter === x ? 'selected' : ''} onClick={() => setFilter(x)} key={x}>{x}</button>)}</div><div className="risk-list">{visible.map(r => <RiskCard key={r.id} risk={r} project={project} refresh={refresh} setToast={setToast} />)}</div></>}{toast && <Toast message={toast} onClose={() => setToast('')} />}</> }
-function RiskCard({ risk, project, refresh, setToast }: { risk: Risk; project: Project; refresh: () => void; setToast: (x: string) => void }) { const [creating, setCreating] = useState(false); const createTask = async () => { setCreating(true); const task = await agentService.createTaskFromFinding(project.id, risk); projectService.addTask(task, project.id); projectService.addActivity({ id: `a-${Date.now()}`, agent: 'Planner Agent', action: `Created task from ${risk.title}`, status: 'Completed', duration: '1.2s', createdAt: 'Just now' }, project.id); setCreating(false); setToast('Task added to the execution plan.'); refresh() }; return <div className={`risk-card panel ${risk.severity.toLowerCase()}`}><div className="risk-top"><Badge tone={risk.severity}>{risk.severity}</Badge>{risk.resolved ? <Badge tone="lime">RESOLVED</Badge> : <span>Reviewer Agent · Today</span>}</div><h2>{risk.title}</h2><p>{risk.detail}</p><div className="recommendation"><span className="eyebrow">RECOMMENDED ACTION</span><p>{risk.recommendation}</p></div><div className="risk-actions">{!risk.resolved && <Button onClick={createTask} icon={creating ? RefreshCw : Plus}>{creating ? 'Creating...' : 'Create Task from Finding'}</Button>}<Button secondary onClick={() => { const p = projectService.getProject(project.id)!; projectService.saveProject({ ...p, risks: p.risks.map(x => x.id === risk.id ? { ...x, resolved: !x.resolved } : x) }); refresh() }}>{risk.resolved ? 'Reopen' : 'Mark resolved'}</Button></div></div> }
-function Testing({ project, refresh }: { project: Project; refresh: () => void }) { return <><PageHeader eyebrow="VALIDATION" title="Verification & Testing" text="Measurable scenarios that prove the system behaves safely." action={<Button icon={Sparkles}>Generate Test Cases</Button>} /><div className="metrics-strip"><span><b>{project.tests.length}</b> Total Tests</span><span><b>{project.tests.filter(t => t.status === 'Passed').length}</b> Passed</span><span><b>{project.tests.filter(t => t.status === 'Pending').length}</b> Pending</span><span><b>{project.tests.filter(t => t.status === 'Failed').length}</b> Failed</span></div><div className="panel table-panel test-table"><div className="test-head"><span>ID</span><span>SCENARIO</span><span>PRECONDITION</span><span>EXPECTED RESULT</span><span>STATUS</span></div>{project.tests.map(test => <div className="test-row" key={test.id}><b>{test.id}</b><span>{test.scenario}</span><span>{test.precondition}</span><span>{test.expected}</span><select value={test.status} onChange={e => { projectService.updateTestCase(test.id, { status: e.target.value as any }, project.id); refresh() }}><option>Pending</option><option>Passed</option><option>Failed</option></select></div>)}</div></> }
+
+function Risks({ project, refresh }: { project: Project; refresh: () => void }) {
+  const [running, setRunning] = useState(false);
+  const [toast, setToast] = useState('');
+  const [filter, setFilter] = useState('All');
+  
+  const review = async () => {
+    setRunning(true);
+    try {
+      const result = await agentService.reviewProject(project);
+      
+      const p = projectService.getProject(project.id)!;
+      projectService.saveProject({
+        ...p,
+        risks: result.risks,
+        activity: [
+          {
+            id: `a-${Date.now()}`,
+            agent: 'Reviewer Agent',
+            action: 'Run Project Review',
+            status: 'Completed',
+            duration: `${result.analysis.duration_ms}ms`,
+            createdAt: 'Just now',
+            model: result.analysis.model,
+            provider: result.analysis.provider,
+            summary: `Detected ${result.risks.length} engineering risks/gaps`
+          },
+          ...p.activity
+        ]
+      });
+      setToast('Project review completed.');
+      refresh();
+    } catch (e: any) {
+      setToast(e.message || 'Error running review');
+    } finally {
+      setRunning(false);
+    }
+  };
+  
+  const visible = project.risks.filter(r => filter === 'All' || filter === 'Resolved' ? (filter === 'Resolved' ? r.resolved : true) : r.severity === filter);
+  return <><PageHeader eyebrow="CONTINUOUS REVIEW" title="Engineering Review" text="ProjectPilot continuously reviews your project for unresolved risks, assumptions and design gaps." action={<Button onClick={review} icon={RefreshCw}>Run Project Review</Button>} />{running ? <AgentProgress title="Reviewer Agent is inspecting your project..." steps={['Requirements', 'Architecture', 'Execution Plan', 'Test Coverage']} /> : <><div className="filter-row">{['All', 'Critical', 'High', 'Medium', 'Resolved'].map(x => <button className={filter === x ? 'selected' : ''} onClick={() => setFilter(x)} key={x}>{x}</button>)}</div><div className="risk-list">{visible.map(r => <RiskCard key={r.id} risk={r} project={project} refresh={refresh} setToast={setToast} />)}</div></>}{toast && <Toast message={toast} onClose={() => setToast('')} />}</>
+}
+function RiskCard({ risk, project, refresh, setToast }: { risk: Risk; project: Project; refresh: () => void; setToast: (x: string) => void }) { const [creating, setCreating] = useState(false); const createTask = async () => { setCreating(true); const task = await agentService.createTaskFromFinding(project.id, risk); projectService.addTask(task, project.id); projectService.addActivity({ id: `a-${Date.now()}`, agent: 'Planner Agent', action: `Created task from ${risk.title}`, status: 'Completed', duration: '1.2s', createdAt: 'Just now', provider: 'NVIDIA', model: 'nvidia/nemotron-3-ultra-550b-a55b' }, project.id); setCreating(false); setToast('Task added to the execution plan.'); refresh() }; return <div className={`risk-card panel ${risk.severity.toLowerCase()}`}><div className="risk-top"><Badge tone={risk.severity}>{risk.severity}</Badge>{risk.resolved ? <Badge tone="lime">RESOLVED</Badge> : <span>Reviewer Agent · Today</span>}</div><h2>{risk.title}</h2><p>{risk.detail}</p><div className="recommendation"><span className="eyebrow">RECOMMENDED ACTION</span><p>{risk.recommendation}</p></div><div className="risk-actions">{!risk.resolved && <Button onClick={createTask} icon={creating ? RefreshCw : Plus}>{creating ? 'Creating...' : 'Create Task from Finding'}</Button>}<Button secondary onClick={() => { const p = projectService.getProject(project.id)!; projectService.saveProject({ ...p, risks: p.risks.map(x => x.id === risk.id ? { ...x, resolved: !x.resolved } : x) }); refresh() }}>{risk.resolved ? 'Reopen' : 'Mark resolved'}</Button></div></div> }
+function Testing({ project, refresh }: { project: Project; refresh: () => void }) {
+  const [running, setRunning] = useState(false);
+  const [toast, setToast] = useState('');
+  const [error, setError] = useState('');
+
+  const generate = async () => {
+    setRunning(true);
+    setError('');
+    try {
+      const result = await agentService.generateTests(project);
+      const current = projectService.getProject(project.id)!;
+      projectService.saveProject({
+        ...current,
+        tests: result.tests,
+        activity: [
+          {
+            id: `a-${Date.now()}`,
+            agent: 'Test Agent',
+            action: 'Generate Verification Strategy',
+            status: 'Completed',
+            duration: `${result.analysis.duration_ms}ms`,
+            createdAt: 'Just now',
+            provider: result.analysis.provider,
+            model: result.analysis.model,
+            summary: `${result.tests.length} test cases generated`
+          },
+          ...current.activity
+        ]
+      });
+      setToast('Verification strategy generated successfully.');
+      refresh();
+    } catch (e: any) {
+      setError(e.message || 'Error running Test Agent');
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <>
+      <PageHeader eyebrow="VALIDATION" title="Verification & Testing" text="Measurable scenarios that prove the system behaves safely." action={<Button onClick={generate} icon={running ? RefreshCw : Sparkles}>{running ? 'Generating...' : 'Generate Test Cases'}</Button>} />
+      
+      {running && <AgentProgress realProvider title="Test Agent is generating your verification strategy..." steps={['Loading project engineering context...', 'Generating verification strategy...', 'Validating structured response...', 'Saving test artifacts...']} />}
+      
+      {error && <div className="agent-error panel"><strong>Test Agent could not complete the analysis.</strong><span>{error}</span><button className="btn btn-secondary" onClick={generate}>Retry</button></div>}
+
+      {!running && (
+        <>
+          <div className="metrics-strip">
+            <span><b>{project.tests.length}</b> Total Tests</span>
+            <span><b>{project.tests.filter(t => t.status === 'Passed').length}</b> Passed</span>
+            <span><b>{project.tests.filter(t => t.status === 'Pending').length}</b> Pending</span>
+            <span><b>{project.tests.filter(t => t.status === 'Failed').length}</b> Failed</span>
+          </div>
+          <div className="panel table-panel test-table">
+            <div className="test-head"><span>ID</span><span>SCENARIO</span><span>PRECONDITION</span><span>EXPECTED RESULT</span><span>STATUS</span></div>
+            {project.tests.map(test => (
+              <div className="test-row" key={test.id}>
+                <b>{test.id}</b>
+                <span>{test.scenario}</span>
+                <span>{test.precondition}</span>
+                <span>{test.expected}</span>
+                <select value={test.status} onChange={e => { projectService.updateTestCase(test.id, { status: e.target.value as any }, project.id); refresh() }}>
+                  <option>Pending</option>
+                  <option>Passed</option>
+                  <option>Failed</option>
+                </select>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {toast && <Toast message={toast} onClose={() => setToast('')} />}
+    </>
+  );
+}
+
 function ActivityPage({ project }: { project: Project }) { return <><PageHeader eyebrow="PROJECT MEMORY" title="Agent Activity" text="Trace how ProjectPilot is analyzing and evolving this project." /><div className="metrics-strip"><span><b>5</b> Agents</span><span><b>{project.activity.length}</b> Runs</span><span><b>{project.activity.filter(a => a.status === 'Completed').length}</b> Successful</span><span><b>{project.activity.filter(a => a.status !== 'Completed').length}</b> Needs Attention</span></div><div className="panel activity-list"><div className="activity-table-head"><span>AGENT</span><span>ACTION</span><span>MODEL</span><span>PROVIDER</span><span>STATUS</span><span>DURATION</span><span>TIME</span></div>{project.activity.map((run, i) => <div className="activity-row" key={run.id}><div className="activity-line"><span className="activity-dot"><Check size={13} /></span>{i < project.activity.length - 1 && <span className="line" />}</div><div><b>{run.agent}</b><span className="mobile-mock">{run.model || 'Simulation'} &middot; {run.provider || 'Local Mock'}</span></div><p>{run.action}</p><span className="activity-meta">{run.model || 'Simulation'}</span><span className="activity-meta">{run.provider || 'Local Mock'}</span><Badge tone={run.status === 'Completed' ? 'lime' : 'amber'}>{run.status}</Badge><span className="duration">{run.duration}</span><span className="activity-meta">{run.createdAt}</span></div>)}</div></> }
 
 function App() { return <BrowserRouter><Routes><Route path="/" element={<Landing />} /><Route path="/login" element={<LoginPage />} /><Route path="/signup" element={<SignupPage />} /><Route path="/new-project" element={<ProtectedRoute><NewProject /></ProtectedRoute>} /><Route path="/profile" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} /><Route path="/settings" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} /><Route path="/project/:id/*" element={<ProjectRoute />} /><Route path="*" element={<Navigate to="/" />} /></Routes></BrowserRouter> }

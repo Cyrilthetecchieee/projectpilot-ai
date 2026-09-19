@@ -2,13 +2,11 @@ import React, { useState, useMemo } from 'react'
 import {
   Check,
   ChevronDown,
-  ChevronRight,
   CircleAlert,
   CircleDot,
   Clock,
   Cpu,
   FileText,
-  Filter,
   Flame,
   Layers,
   Link2,
@@ -23,6 +21,7 @@ import type { Priority, Project, Task, TaskStatus } from '../types'
 import { projectService } from '../services/projectService'
 import { agentService } from '../services/agentService'
 import { TaskExecutionModal } from './TaskExecutionModal'
+import { ReportIssueModal } from './ReportIssueModal'
 import './ExecutionPlanView.css'
 
 interface ExecutionPlanViewProps {
@@ -37,6 +36,7 @@ export function ExecutionPlanView({ project, refresh }: ExecutionPlanViewProps) 
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [reportTask, setReportTask] = useState<Task | null>(null)
 
   // Filters & Search State
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('All')
@@ -599,6 +599,15 @@ export function ExecutionPlanView({ project, refresh }: ExecutionPlanViewProps) 
                                     </span>
                                   </button>
 
+                                  <button
+                                    type="button"
+                                    className="btn-task-runner state-pending"
+                                    onClick={() => setReportTask(task)}
+                                    title="Report an issue with this task"
+                                  >
+                                    <span>Report Issue</span>
+                                  </button>
+
                                   {/* Priority Badge */}
                                   <span className={`task-priority-badge priority-${task.priority.toLowerCase()}`}>
                                     {task.priority}
@@ -738,6 +747,17 @@ export function ExecutionPlanView({ project, refresh }: ExecutionPlanViewProps) 
             </form>
           </div>
         </div>
+      )}
+
+            {/* Report Issue Modal */}
+      {reportTask && (
+        <ReportIssueModal
+          isOpen={Boolean(reportTask)}
+          onClose={() => setReportTask(null)}
+          task={reportTask}
+          project={project}
+          refresh={refresh}
+        />
       )}
 
       {/* Task Execution Runner Modal */}

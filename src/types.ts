@@ -72,3 +72,66 @@ export interface CreateApiKeyPayload {
   credentialType?: CredentialType
 }
 
+
+
+export interface RecoveryTaskOption {
+  needed: boolean;
+  title: string;
+  description: string;
+  estimated_effort: string;
+}
+
+export interface IssueAnalysisResponse {
+  issue_summary: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  likely_causes: string[];
+  recommended_fix: string[];
+  affected_requirements: string[];
+  affected_components: string[];
+  blocked_tasks: string[];
+  can_continue_other_tasks: boolean;
+  recommended_next_action: string;
+  recovery_task: RecoveryTaskOption;
+}
+
+export interface IssueRecord {
+  id: string;
+  project_id: string;
+  task_id: string;
+  description: string;
+  image_path: string;
+  analysis: IssueAnalysisResponse;
+  status: string;
+  created_at: string;
+  resolved_at: string;
+}
+
+
+export type OrchestratorState = 'INITIALIZED' | 'REQUIREMENTS_PENDING' | 'REQUIREMENTS_COMPLETE' | 'ARCHITECTURE_PENDING' | 'ARCHITECTURE_COMPLETE' | 'PLANNING_PENDING' | 'PLANNING_COMPLETE' | 'REVIEW_PENDING' | 'REVIEW_COMPLETE' | 'TESTING_PENDING' | 'TESTING_COMPLETE' | 'READY' | 'PAUSED' | 'FAILED' | 'BLOCKED'
+
+export interface DecisionRecord {
+  id: string;
+  timestamp: string;
+  previous_state: string;
+  next_state: string;
+  action: string;
+  agent: string;
+  reason: string;
+  result: string;
+  retry_count: number;
+}
+
+export interface OrchestratorRun {
+  project_id: string;
+  state: OrchestratorState;
+  current_agent: string;
+  current_action: string;
+  progress_steps: string[];
+  decisions: DecisionRecord[];
+  execution_count: number;
+  correction_cycles: number;
+  is_running: boolean;
+  human_input_required: boolean;
+  human_input_reason: string;
+  error_message: string;
+}

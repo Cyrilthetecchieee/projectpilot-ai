@@ -122,9 +122,98 @@ export const agentService = {
     const milestones: MilestoneData[] = analysis.milestones.map(m => ({ id: m.id, title: m.title, description: m.description, order: m.order }))
     return { tasks, milestones, analysis }
   },
-  async reviewProject(project: Project): Promise<Risk[]> { return run(project.risks) },
-  async generateTests(project: Project): Promise<TestCase[]> { return run(project.tests) },
+  async reviewProject(project: Project): Promise<{ risks: Risk[]; analysis: any }> {
+    const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(project.id)}/agents/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project: { id: project.id, name: project.name, idea: project.idea, objective: project.objective, type: project.type, technologies: project.technologies, constraints: project.constraints, timeline: project.timeline, stage: project.stage } }),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.detail?.message || err.detail || 'Review Agent failed')
+    }
+    const analysis = await response.json()
+    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
+    const risks: Risk[] = analysis.risks.map((r: any, idx: number) => ({
+      id: `R-${Date.now()}-${idx}`,
+      title: r.title,
+      severity: r.severity,
+      detail: r.detail,
+      recommendation: r.recommendation,
+      resolved: false
+    }))
+    return { risks, analysis }
+  },
+  async generateTests(project: Project): Promise<{ tests: TestCase[]; analysis: any }> {
+    const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(project.id)}/agents/tests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project: { id: project.id, name: project.name, idea: project.idea, objective: project.objective, type: project.type, technologies: project.technologies, constraints: project.constraints, timeline: project.timeline, stage: project.stage } }),
+    })
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}))
+      throw new Error(err.detail?.message || err.detail || 'Test Agent failed')
+    }
+    const analysis = await response.json()
+    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
+    const tests: TestCase[] = analysis.test_cases.map((t: any, idx: number) => ({
+      id: `TC-${String(idx + 1).padStart(2, "0")}`,
+      scenario: t.scenario,
+      precondition: t.precondition,
+      expected: t.expected_result,
+      status: 'Pending',
+    }))
+    return { tests, analysis }
+  },
   async getNextAction(project: Project) { return run(project.nextAction) },
+  
+  
+  async getOrchestratorStatus(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/status`);
+    if (!res.ok) throw new Error('Failed to get status');
+    return res.json();
+  },
+  async startOrchestrator(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/start`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to start');
+    return res.json();
+  },
+  async pauseOrchestrator(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/pause`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to pause');
+    return res.json();
+  },
+  async resumeOrchestrator(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/resume`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to resume');
+    return res.json();
+  },
+  async stopOrchestrator(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/stop`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to stop');
+    return res.json();
+  },
+  async analyzeIssue(project: Project, taskId: string, description: string, imageFile?: File): Promise<any> {
+    const formData = new FormData();
+    formData.append('project_data', JSON.stringify(project));
+    formData.append('task_id', taskId);
+    formData.append('description', description);
+    if (imageFile) {
+      formData.append('image', imageFile);
+    }
+    
+    const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(project.id)}/issues`, {
+      method: 'POST',
+      body: formData,
+    });
+    
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new Error(err.detail?.message || err.detail || 'Issue Analysis failed');
+    }
+    
+    return response.json();
+  },
   async createTaskFromFinding(_projectId: string, risk: Risk): Promise<Task> {
     const engine = apiKeyService.getAiEngineStatus()
     const keyToValidate = engine.activeKey?.key || engine.activeKey?.maskedValue

@@ -2,12 +2,22 @@ import { demoProject } from '../data/demoProject'
 import type { Project, Task, Requirement, TestCase, AgentRun } from '../types'
 
 const KEY = 'projectpilot.projects'
-const read = (): Project[] => JSON.parse(localStorage.getItem(KEY) || '[]')
+const read = (): Project[] => {
+  const data = JSON.parse(localStorage.getItem(KEY) || '[]');
+  return data.map((p: any) => ({
+    ...p,
+    activity: (p.activity || []).filter((a: any) => !(a.provider === 'Local Mock' || a.model === 'Simulation' || (!a.provider && !a.model)))
+  }));
+}
 const write = (projects: Project[]) => localStorage.setItem(KEY, JSON.stringify(projects))
 const clone = <T,>(value: T): T => JSON.parse(JSON.stringify(value))
 
 export const projectService = {
-  getProjects(): Project[] { const projects = read(); return projects.length ? projects : [clone(demoProject)] },
+  getProjects(): Project[] {
+  const filterMock = (p: any) => ({ ...p, activity: (p.activity || []).filter((a: any) => !(a.provider === 'Local Mock' || a.model === 'Simulation' || (!a.provider && !a.model))) });
+  const projects = read();
+  return projects.length ? projects : [filterMock(clone(demoProject))] as Project[];
+},
   getProject(id: string): Project | undefined { return this.getProjects().find(project => project.id === id) },
   saveProject(project: Project): Project { const projects = this.getProjects().filter(item => item.id !== project.id); write([...projects, project]); return project },
   createProject(input: Pick<Project, 'name' | 'idea' | 'objective' | 'type' | 'technologies' | 'constraints' | 'timeline' | 'stage'>): Project { const project: Project = { ...clone(demoProject), ...input, id: `${input.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')}-${Date.now()}`, requirements: [], architecture: [], tasks: [], risks: [], tests: [], activity: [], completion: 0 }; return this.saveProject(project) },

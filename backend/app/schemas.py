@@ -171,3 +171,133 @@ class PlannerResponse(ExecutionPlan):
     provider: str = "NVIDIA"
     model: str
     duration_ms: int
+
+
+class ReviewRisk(BaseModel):
+    title: str = Field(min_length=1)
+    severity: Priority
+    detail: str = Field(min_length=1)
+    recommendation: str = Field(min_length=1)
+
+
+class ReviewAnalysis(BaseModel):
+    summary: str = Field(min_length=1)
+    risks: list[ReviewRisk] = Field(default_factory=list)
+
+
+class ReviewRequest(BaseModel):
+    project: ProjectContext
+
+
+class ReviewResponse(ReviewAnalysis):
+    project_id: str
+    agent: str = "Reviewer Agent"
+    provider: str = "NVIDIA"
+    model: str
+    duration_ms: int
+
+# ---------------------------------------------------------------------------
+# Test Agent schemas
+# ---------------------------------------------------------------------------
+
+class TestCaseItem(BaseModel):
+    scenario: str = Field(min_length=1)
+    precondition: str = Field(min_length=1)
+    expected_result: str = Field(min_length=1)
+
+class TestAnalysis(BaseModel):
+    summary: str = Field(min_length=1)
+    test_cases: list[TestCaseItem] = Field(default_factory=list)
+
+class TestRequest(BaseModel):
+    project: ProjectContext
+
+class TestResponse(TestAnalysis):
+    project_id: str
+    agent: str = "Test Agent"
+    provider: str = "NVIDIA"
+    model: str
+    duration_ms: int
+
+
+# ---------------------------------------------------------------------------
+# Issue Analysis schemas
+# ---------------------------------------------------------------------------
+
+class RecoveryTaskOption(BaseModel):
+    needed: bool
+    title: str = ""
+    description: str = ""
+    estimated_effort: str = ""
+
+class IssueAnalysisResponse(BaseModel):
+    issue_summary: str = Field(min_length=1)
+    severity: Priority
+    likely_causes: list[str] = Field(min_length=1)
+    recommended_fix: list[str] = Field(min_length=1)
+    affected_requirements: list[str] = Field(default_factory=list)
+    affected_components: list[str] = Field(default_factory=list)
+    blocked_tasks: list[str] = Field(default_factory=list)
+    can_continue_other_tasks: bool
+    recommended_next_action: str = Field(min_length=1)
+    recovery_task: RecoveryTaskOption
+
+class IssueRecord(BaseModel):
+    id: str
+    project_id: str
+    task_id: str
+    description: str
+    image_path: str = ""
+    analysis: IssueAnalysisResponse
+    status: str = "Open"
+    created_at: str
+    resolved_at: str = ""
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator schemas
+# ---------------------------------------------------------------------------
+
+from enum import Enum
+
+class OrchestratorState(str, Enum):
+    INITIALIZED = "INITIALIZED"
+    REQUIREMENTS_PENDING = "REQUIREMENTS_PENDING"
+    REQUIREMENTS_COMPLETE = "REQUIREMENTS_COMPLETE"
+    ARCHITECTURE_PENDING = "ARCHITECTURE_PENDING"
+    ARCHITECTURE_COMPLETE = "ARCHITECTURE_COMPLETE"
+    PLANNING_PENDING = "PLANNING_PENDING"
+    PLANNING_COMPLETE = "PLANNING_COMPLETE"
+    REVIEW_PENDING = "REVIEW_PENDING"
+    REVIEW_COMPLETE = "REVIEW_COMPLETE"
+    TESTING_PENDING = "TESTING_PENDING"
+    TESTING_COMPLETE = "TESTING_COMPLETE"
+    READY = "READY"
+    PAUSED = "PAUSED"
+    FAILED = "FAILED"
+    BLOCKED = "BLOCKED"
+
+class DecisionRecord(BaseModel):
+    id: str
+    timestamp: str
+    previous_state: str
+    next_state: str
+    action: str
+    agent: str
+    reason: str
+    result: str = ""
+    retry_count: int = 0
+
+class OrchestratorRun(BaseModel):
+    project_id: str
+    state: OrchestratorState
+    current_agent: str = ""
+    current_action: str = ""
+    progress_steps: list[str] = Field(default_factory=list)
+    decisions: list[DecisionRecord] = Field(default_factory=list)
+    execution_count: int = 0
+    correction_cycles: int = 0
+    is_running: bool = False
+    human_input_required: bool = False
+    human_input_reason: str = ""
+    error_message: str = ""
