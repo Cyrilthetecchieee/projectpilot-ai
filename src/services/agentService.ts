@@ -1,4 +1,3 @@
-import type { ArchitectureComponent, ArchitectureConnection, ArchitectureDataFlow, ArchitectureDecision, Project, Requirement, Risk, Task, TestCase } from '../types'
 import type { ArchitectureComponent, ArchitectureConnection, ArchitectureDataFlow, ArchitectureDecision, MilestoneData, Project, Requirement, Risk, Task, TestCase } from '../types'
 import { apiKeyService } from './apiKeyService'
 
@@ -89,7 +88,6 @@ export const agentService = {
     const architecture = analysis.components.map(component => ({ id: component.id, name: component.name, status: 'Active', responsibility: component.responsibility, inputs: component.inputs, outputs: component.outputs, type: component.type, technology: component.technology, relatedRequirements: component.related_requirements }))
     return { architecture, analysis }
   },
-  async generatePlan(project: Project) { return run(project.tasks) },
   async generatePlan(project: Project): Promise<{ tasks: Task[]; milestones: MilestoneData[]; analysis: PlannerApiResponse }> {
     const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(project.id)}/agents/plan`, {
       method: 'POST',
