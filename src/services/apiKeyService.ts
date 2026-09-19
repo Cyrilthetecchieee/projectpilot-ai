@@ -8,6 +8,13 @@ import { authService } from './authService'
 
 const STORAGE_KEY = 'projectpilot.credentials.metadata'
 const VAULT_SECRETS_KEY = 'projectpilot.vault.secrets'
+const AI_ENGINE_STATUS_KEY = 'projectpilot.aiEngine.status'
+
+interface VerifiedAiEngineStatus {
+  providerName: string
+  modelName: string
+  verifiedAt: string
+}
 
 const generateRandomString = (length = 32): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -146,6 +153,31 @@ const writeVaultSecret = (reference: string, secret: string) => {
     localStorage.setItem(VAULT_SECRETS_KEY, JSON.stringify(vault))
   } catch {
     // Ignore quota errors
+  }
+}
+
+const readVerifiedAiEngineStatus = (): VerifiedAiEngineStatus | null => {
+  try {
+    const raw = localStorage.getItem(AI_ENGINE_STATUS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<VerifiedAiEngineStatus>
+    if (!parsed.providerName || !parsed.modelName || !parsed.verifiedAt) return null
+    return {
+      providerName: parsed.providerName,
+      modelName: parsed.modelName,
+      verifiedAt: parsed.verifiedAt,
+    }
+  } catch {
+    return null
+  }
+}
+
+const writeVerifiedAiEngineStatus = (status: VerifiedAiEngineStatus) => {
+  try {
+    localStorage.setItem(AI_ENGINE_STATUS_KEY, JSON.stringify(status))
+    window.dispatchEvent(new CustomEvent('projectpilot:ai-engine-status-changed'))
+  } catch {
+    // Ignore storage errors; the agent result itself is still valid.
   }
 }
 
@@ -549,6 +581,8 @@ export const apiKeyService = {
   getAiEngineStatus(): {
     mode: 'Live Connected' | 'Simulation Mode'
     providerName: string
+    modelName?: string
+    verifiedAt?: string
     activeKey?: CredentialMetadata
     activeCredential?: CredentialMetadata
     totalActiveKeys: number
@@ -556,11 +590,25 @@ export const apiKeyService = {
     const creds = this.getCredentialsSync()
     const activeKeys = creds.filter(k => k.status === 'Active')
     const primary = this.getActiveAiKey()
+    const verified = readVerifiedAiEngineStatus()
+
+    if (verified) {
+      return {
+        mode: 'Live Connected',
+        providerName: verified.providerName,
+        modelName: verified.modelName,
+        verifiedAt: verified.verifiedAt,
+        activeKey: primary,
+        activeCredential: primary,
+        totalActiveKeys: activeKeys.length,
+      }
+    }
 
     if (primary) {
       return {
         mode: 'Live Connected',
         providerName: primary.provider,
+        modelName: primary.provider,
         activeKey: primary,
         activeCredential: primary,
         totalActiveKeys: activeKeys.length,
@@ -570,9 +618,19 @@ export const apiKeyService = {
     return {
       mode: 'Simulation Mode',
       providerName: 'Google Gemini',
+      modelName: 'Simulation',
       activeKey: undefined,
       activeCredential: undefined,
       totalActiveKeys: activeKeys.length,
     }
+  },
+
+  recordLiveAiExecution(providerName: string, modelName: string) {
+    if (!providerName.trim() || !modelName.trim()) return
+    writeVerifiedAiEngineStatus({
+      providerName: providerName.trim(),
+      modelName: modelName.trim(),
+      verifiedAt: new Date().toISOString(),
+    })
   },
 }

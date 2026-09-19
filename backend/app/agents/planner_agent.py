@@ -38,6 +38,12 @@ If architecture contains unresolved gaps, create appropriate planning tasks to r
 
 Link tasks to the requirements and architecture components they relate to using the related_requirements and related_components fields.
 
+To optimize processing, you MUST strictly adhere to the following limits:
+- Maximum 3 milestones
+- Maximum 8 tasks in total
+- Keep task descriptions, success criteria, and planning notes extremely concise
+- Do not provide long explanations or markdown text outside the JSON
+
 Return exactly ONE valid JSON object matching the supplied schema.
 Do not return markdown.
 Do not return code fences.

@@ -67,6 +67,7 @@ export const agentService = {
       throw new Error(body?.detail || `Requirement Agent request failed (${response.status})`)
     }
     const analysis = await response.json() as RequirementApiResponse
+    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
     const requirements = [
       ...analysis.functional_requirements.map((item, index) => ({ id: `FR-${String(index + 1).padStart(2, '0')}`, text: `${item.title}: ${item.description}`, kind: 'Functional' as const, priority: priorityLabel(item.priority), status: 'Validated' as const })),
       ...analysis.non_functional_requirements.map((item, index) => ({ id: `NFR-${String(index + 1).padStart(2, '0')}`, text: `${item.title}: ${item.description}`, kind: 'Non-functional' as const, priority: priorityLabel(item.priority), status: 'Needs review' as const })),
@@ -85,6 +86,7 @@ export const agentService = {
       throw new Error(detail || `Architecture Agent request failed (${response.status})`)
     }
     const analysis = await response.json() as ArchitectureApiResponse
+    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
     const architecture = analysis.components.map(component => ({ id: component.id, name: component.name, status: 'Active', responsibility: component.responsibility, inputs: component.inputs, outputs: component.outputs, type: component.type, technology: component.technology, relatedRequirements: component.related_requirements }))
     return { architecture, analysis }
   },
@@ -100,6 +102,7 @@ export const agentService = {
       throw new Error(detail || `Planner Agent request failed (${response.status})`)
     }
     const analysis = await response.json() as PlannerApiResponse
+    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
     const criticalSet = new Set(analysis.critical_path)
     const milestoneMap = new Map(analysis.milestones.map(m => [m.id, m.title]))
     const tasks: Task[] = analysis.tasks.map(task => ({
