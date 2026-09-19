@@ -4,8 +4,8 @@ import { apiKeyService } from './apiKeyService'
 const wait = (ms = 850) => new Promise(resolve => setTimeout(resolve, ms))
 const run = async <T,>(value: T): Promise<T> => {
   const engine = apiKeyService.getAiEngineStatus()
-  if (engine.activeKey) {
-    apiKeyService.validateApiKey(engine.activeKey.key)
+  if (engine.activeKey?.key || engine.activeKey?.maskedValue) {
+    apiKeyService.validateApiKey(engine.activeKey.key || engine.activeKey.maskedValue)
   }
   await wait()
   return value
@@ -82,7 +82,8 @@ export const agentService = {
   async getNextAction(project: Project) { return run(project.nextAction) },
   async createTaskFromFinding(_projectId: string, risk: Risk): Promise<Task> {
     const engine = apiKeyService.getAiEngineStatus()
-    if (engine.activeKey) apiKeyService.validateApiKey(engine.activeKey.key)
+    const keyToValidate = engine.activeKey?.key || engine.activeKey?.maskedValue
+    if (keyToValidate) apiKeyService.validateApiKey(keyToValidate)
     await wait(500)
     return { id: `T-${Date.now()}`, title: `Define fallback states for ${risk.title.toLowerCase()}`, milestone: 'Requirements & Design', priority: risk.severity, status: 'Pending', dependency: 'Safety state model', successCriteria: risk.recommendation }
   },
