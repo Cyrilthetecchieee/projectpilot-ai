@@ -11,7 +11,7 @@ export interface AgentRun { id: string; agent: string; action: string; status: '
 export interface NextAction { title: string; description: string; priority: Priority; effort: string; criteria: string[] }
 export interface Project { id: string; name: string; idea: string; objective: string; type: string; technologies: string[]; constraints: string; timeline: string; stage: string; completion: number; requirements: Requirement[]; architecture: ArchitectureComponent[]; tasks: Task[]; risks: Risk[]; tests: TestCase[]; activity: AgentRun[]; nextAction: NextAction }
 
-export type ApiKeyProvider = 'ProjectPilot' | 'Google Gemini' | 'OpenAI' | 'Anthropic Claude' | 'Custom'
+export type ApiKeyProvider = 'ProjectPilot' | 'Google Gemini' | 'Nebius Token Factory' | 'OpenAI' | 'Anthropic Claude' | 'Custom'
 export type ApiKeyEnvironment = 'Production' | 'Staging' | 'Development'
 export type ApiKeyScope = 'read:project' | 'write:project' | 'run:agents' | 'manage:keys' | 'admin'
 export type ApiKeyStatus = 'Active' | 'Revoked' | 'Expired'

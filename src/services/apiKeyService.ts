@@ -20,6 +20,7 @@ const generateRandomString = (length = 32): string => {
 }
 
 const generatePrefix = (provider: ApiKeyProvider, env: ApiKeyEnvironment): string => {
+  if (provider === 'Nebius Token Factory') return 'nebius_live_'
   if (provider === 'Google Gemini') return 'AIzaSy'
   if (provider === 'OpenAI') return 'sk-proj-'
   if (provider === 'Anthropic Claude') return 'sk-ant-'
@@ -187,18 +188,20 @@ export const apiKeyService = {
     const updated = keys.map(k => (k.id === match.id ? { ...k, lastUsedAt: 'Just now' } : k))
     writeStorage(updated)
 
-    return { valid: true, key: match, message: 'Authentication successful' }
+    return { valid: true, key: match, message: `Authenticated via [${match.name}] (${match.provider})` }
   },
 
   getActiveAiKey(): ApiKey | undefined {
     const keys = this.getApiKeys()
-    return keys.find(
-      k =>
-        k.status === 'Active' &&
-        (k.provider === 'Google Gemini' ||
-          k.provider === 'OpenAI' ||
-          k.provider === 'Anthropic Claude' ||
-          k.scopes.includes('run:agents'))
+    return (
+      keys.find(
+        k =>
+          k.status === 'Active' &&
+          (k.provider === 'Nebius Token Factory' ||
+            k.provider === 'Google Gemini' ||
+            k.provider === 'OpenAI' ||
+            k.provider === 'Anthropic Claude')
+      ) || keys.find(k => k.status === 'Active' && k.scopes.includes('run:agents'))
     )
   },
 

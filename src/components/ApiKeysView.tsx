@@ -4,7 +4,10 @@ import {
   Check,
   Code2,
   Copy,
+  Eye,
+  EyeOff,
   Key,
+  KeyRound,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -12,6 +15,7 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
+  Sparkles,
   Terminal,
   Trash2,
   X,
@@ -33,11 +37,11 @@ interface ApiKeysViewProps {
 }
 
 const AVAILABLE_SCOPES: { id: ApiKeyScope; label: string; desc: string }[] = [
+  { id: 'run:agents', label: 'Execute Agents', desc: 'Run Requirement, Architecture, Reviewer, and Test agents' },
   { id: 'read:project', label: 'Read Project', desc: 'Read requirements, architecture, tasks, and tests' },
   { id: 'write:project', label: 'Write Project', desc: 'Create and update requirements, architecture nodes, tasks' },
-  { id: 'run:agents', label: 'Execute Agents', desc: 'Run Requirement, Architecture, Reviewer, and Test agents' },
-  { id: 'manage:keys', label: 'Manage Keys', desc: 'Generate and revoke project API keys' },
-  { id: 'admin', label: 'Full Admin Access', desc: 'Unrestricted administration over project and agents' },
+  { id: 'manage:keys', label: 'Manage Keys', desc: 'Generate, configure, and revoke project API keys' },
+  { id: 'admin', label: 'Full Admin Access', desc: 'Unrestricted administration over project and agent pipelines' },
 ]
 
 export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
@@ -45,9 +49,12 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
   const [engineStatus, setEngineStatus] = useState(() => apiKeyService.getAiEngineStatus())
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'Active' | 'Revoked'>('all')
+  const [toast, setToast] = useState('')
 
   // Modals state
   const [showCreateModal, setShowCreateModal] = useState(false)
+  const [entryMode, setEntryMode] = useState<'manual' | 'generate'>('manual')
+  const [showSecretText, setShowSecretText] = useState(false)
   const [revealedKey, setRevealedKey] = useState<{ name: string; secret: string } | null>(null)
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null)
   const [copiedSecret, setCopiedSecret] = useState(false)
@@ -57,15 +64,21 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
 
   // Form state
   const [name, setName] = useState('')
-  const [provider, setProvider] = useState<ApiKeyProvider>('ProjectPilot')
+  const [provider, setProvider] = useState<ApiKeyProvider>('Google Gemini')
   const [environment, setEnvironment] = useState<ApiKeyEnvironment>('Production')
   const [selectedScopes, setSelectedScopes] = useState<ApiKeyScope[]>([
+    'run:agents',
     'read:project',
     'write:project',
-    'run:agents',
   ])
   const [customSecret, setCustomSecret] = useState('')
-  const [expiryDays, setExpiryDays] = useState<number | null>(90)
+  const [expiryDays, setExpiryDays] = useState<number | null>(null)
+  const [formError, setFormError] = useState('')
+
+  const showNotification = (msg: string) => {
+    setToast(msg)
+    setTimeout(() => setToast(''), 3000)
+  }
 
   const reload = () => {
     const updated = apiKeyService.getApiKeys()
@@ -83,12 +96,70 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
       setCopiedSecret(true)
       setTimeout(() => setCopiedSecret(false), 2000)
     }
+    showNotification('Key secret copied to clipboard.')
+  }
+
+  const openModal = (mode: 'manual' | 'generate', initialSecret = '') => {
+    setEntryMode(mode)
+    setFormError('')
+    if (initialSecret) {
+      setCustomSecret(initialSecret)
+      detectProviderFromSecret(initialSecret)
+    } else if (mode === 'manual') {
+      setName('')
+      setCustomSecret('')
+      setProvider('Google Gemini')
+      setSelectedScopes(['run:agents', 'read:project', 'write:project'])
+    } else {
+      setName('ProjectPilot CI/CD Token')
+      setProvider('ProjectPilot')
+      setCustomSecret('')
+      setSelectedScopes(['run:agents', 'read:project', 'write:project'])
+    }
+    setShowCreateModal(true)
+  }
+
+  const detectProviderFromSecret = (val: string) => {
+    const clean = val.trim()
+    if (clean.startsWith('AIzaSy')) {
+      setProvider('Google Gemini')
+      if (!name || name.includes('Key')) setName('Google Gemini API Key')
+    } else if (clean.startsWith('nebius_') || clean.toLowerCase().includes('nemotron')) {
+      setProvider('Nebius Token Factory')
+      if (!name || name.includes('Key')) setName('Nebius Nemotron Key')
+    } else if (clean.startsWith('sk-ant')) {
+      setProvider('Anthropic Claude')
+      if (!name || name.includes('Key')) setName('Anthropic Claude Key')
+    } else if (clean.startsWith('sk-')) {
+      setProvider('OpenAI')
+      if (!name || name.includes('Key')) setName('OpenAI GPT-4o Key')
+    } else if (clean.startsWith('pp_')) {
+      setProvider('ProjectPilot')
+      if (!name || name.includes('Key')) setName('ProjectPilot Token')
+    }
+  }
+
+  const handleSecretChange = (val: string) => {
+    setCustomSecret(val)
+    setFormError('')
+    detectProviderFromSecret(val)
   }
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault()
+    setFormError('')
+
+    if (entryMode === 'manual' && !customSecret.trim()) {
+      setFormError('Please enter or paste your API key secret.')
+      return
+    }
+
+    const keyName =
+      name.trim() ||
+      (entryMode === 'manual' ? `${provider} Key` : 'New Agent Runner Token')
+
     const payload: CreateApiKeyPayload = {
-      name: name.trim() || 'New Agent Key',
+      name: keyName,
       provider,
       environment,
       scopes: selectedScopes,
@@ -101,31 +172,43 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
     setShowCreateModal(false)
     setName('')
     setCustomSecret('')
-    setSelectedScopes(['read:project', 'write:project', 'run:agents'])
-    setRevealedKey({ name: apiKey.name, secret: rawSecret })
+    setSelectedScopes(['run:agents', 'read:project', 'write:project'])
+
+    if (entryMode === 'manual') {
+      showNotification(`API Key "${apiKey.name}" successfully added to vault!`)
+    } else {
+      setRevealedKey({ name: apiKey.name, secret: rawSecret })
+    }
   }
 
   const handleRevoke = (id: string) => {
+    const key = keys.find(k => k.id === id)
     apiKeyService.revokeApiKey(id)
     reload()
+    showNotification(`API Key "${key?.name || 'Key'}" has been revoked.`)
   }
 
   const handleRestore = (id: string) => {
+    const key = keys.find(k => k.id === id)
     apiKeyService.restoreApiKey(id)
     reload()
+    showNotification(`API Key "${key?.name || 'Key'}" restored to Active.`)
   }
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to permanently delete this API key?')) {
+    const key = keys.find(k => k.id === id)
+    if (window.confirm(`Permanently remove "${key?.name || 'this API key'}" from your vault?`)) {
       apiKeyService.deleteApiKey(id)
       reload()
+      showNotification(`API Key deleted permanently.`)
     }
   }
 
   const handleResetDefaults = () => {
-    if (confirm('Reset API keys to factory defaults?')) {
+    if (window.confirm('Reset vault to default demo API keys?')) {
       apiKeyService.resetDemoKeys()
       reload()
+      showNotification('API keys reset to defaults.')
     }
   }
 
@@ -170,8 +253,8 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
           <span className="eyebrow">WORKSPACE SECURITY & INTEGRATIONS</span>
           <h1>API Keys & Agent Tokens</h1>
           <p>
-            Create, configure and manage API keys for external agent runners, CI/CD automation, and
-            connecting LLM reasoning models.
+            Connect your own API key manually or generate scoped agent tokens to authenticate external
+            runners, CI/CD pipelines, and LLM reasoning models.
           </p>
         </div>
         <div className="header-actions">
@@ -186,8 +269,17 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
           </button>
           <button
             type="button"
+            className="btn btn-secondary"
+            onClick={() => openModal('manual')}
+            title="Paste and connect your own API key"
+          >
+            <KeyRound size={15} />
+            Add Manual API Key
+          </button>
+          <button
+            type="button"
             className="btn"
-            onClick={() => setShowCreateModal(true)}
+            onClick={() => openModal('manual')}
           >
             <Plus size={16} />
             Create New API Key
@@ -211,11 +303,12 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
             </div>
             <p className="engine-desc">
               {engineStatus.mode === 'Live Connected'
-                ? `Agents for "${project.name}" are authenticated via active key [${engineStatus.activeKey?.name || 'Primary Token'}]. Requests will invoke live reasoning models.`
-                : `Currently in Mock Mode. Connect an active Google Gemini, OpenAI, or ProjectPilot API Key with "run:agents" permission to unlock live model inference.`}
+                ? `Agents for "${project.name}" are authenticated via active key [${engineStatus.activeKey?.name || 'Primary Token'}]. Autonomous requests will invoke live reasoning models.`
+                : `Currently in Simulation Mode. Connect your own Google Gemini, Nebius / NVIDIA Nemotron, or OpenAI API Key with "run:agents" scope to unlock live model inference.`}
             </p>
           </div>
         </div>
+
         <div className="engine-banner-right">
           <form onSubmit={handleTestKey} className="quick-verify-form">
             <input
@@ -229,12 +322,22 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
               <Terminal size={14} /> Test
             </button>
           </form>
+
           {testResult && (
             <div
               className={`test-feedback ${testResult.valid ? 'feedback-ok' : 'feedback-err'}`}
             >
               {testResult.valid ? <ShieldCheck size={14} /> : <AlertTriangle size={14} />}
               <span>{testResult.message}</span>
+              {testResult.valid && !keys.some(k => k.key === quickTestKey.trim()) && (
+                <button
+                  type="button"
+                  className="quick-save-link"
+                  onClick={() => openModal('manual', quickTestKey)}
+                >
+                  + Add to Vault
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -317,14 +420,23 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
           <div className="empty-state">
             <Key size={32} />
             <h3>No API keys match your criteria</h3>
-            <p>Generate a new API key to automate agents or authenticate external tools.</p>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setShowCreateModal(true)}
-            >
-              <Plus size={15} /> Create API Key
-            </button>
+            <p>Connect your own key manually or generate an authenticated token to run agent workflows.</p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => openModal('manual')}
+              >
+                <KeyRound size={15} /> Add Manual Key
+              </button>
+              <button
+                type="button"
+                className="btn"
+                onClick={() => openModal('generate')}
+              >
+                <Plus size={15} /> Generate API Key
+              </button>
+            </div>
           </div>
         ) : (
           <div className="keys-table">
@@ -368,6 +480,7 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
                 <div>
                   <span className="provider-pill">
                     {apiKey.provider === 'Google Gemini' && <Zap size={13} />}
+                    {apiKey.provider === 'Nebius Token Factory' && <Sparkles size={13} />}
                     {apiKey.provider === 'ProjectPilot' && <Shield size={13} />}
                     {apiKey.provider === 'OpenAI' && <Code2 size={13} />}
                     {apiKey.provider === 'Anthropic Claude' && <Terminal size={13} />}
@@ -426,7 +539,7 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
                     type="button"
                     className="icon-action-btn delete-btn"
                     onClick={() => handleDelete(apiKey.id)}
-                    title="Delete key"
+                    title="Delete key permanently"
                   >
                     <Trash2 size={15} />
                   </button>
@@ -457,14 +570,14 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
               className={codeTab === 'ts' ? 'active-tab' : ''}
               onClick={() => setCodeTab('ts')}
             >
-              TypeScript / Node
+              TypeScript SDK
             </button>
             <button
               type="button"
               className={codeTab === 'python' ? 'active-tab' : ''}
               onClick={() => setCodeTab('python')}
             >
-              Python
+              Python Client
             </button>
           </div>
         </div>
@@ -472,9 +585,8 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
         <div className="code-snippet-box">
           {codeTab === 'curl' && (
             <pre>
-              <code>{`# Execute Requirements Analysis Agent via ProjectPilot API
-curl -X POST https://api.projectpilot.ai/v1/projects/${project.id}/agents/run \\
-  -H "Authorization: Bearer ${keys[0]?.maskedKey || 'pp_live_••••••••••••'}" \\
+              <code>{`curl -X POST https://api.projectpilot.ai/v1/agents/run \\
+  -H "Authorization: Bearer ${keys[0]?.key || 'pp_live_...'}" \\
   -H "Content-Type: application/json" \\
   -d '{
     "agent": "Requirement Agent",
@@ -519,31 +631,108 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
         </div>
       </div>
 
-      {/* CREATE KEY MODAL */}
+      {/* CREATE / CONNECT KEY MODAL */}
       {showCreateModal && (
         <div className="modal-backdrop" onClick={() => setShowCreateModal(false)}>
           <div className="modal-window" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-header-text">
-                <span className="eyebrow">NEW CREDENTIAL</span>
-                <h2>Generate New API Key</h2>
+                <span className="eyebrow">
+                  {entryMode === 'manual' ? 'CONNECT YOUR CREDENTIAL' : 'AUTO-GENERATE TOKEN'}
+                </span>
+                <h2>{entryMode === 'manual' ? 'Add API Key Manually' : 'Generate New API Key'}</h2>
               </div>
               <button
                 type="button"
                 className="close-modal-btn"
                 onClick={() => setShowCreateModal(false)}
+                aria-label="Close modal"
               >
                 <X size={18} />
               </button>
             </div>
 
+            {/* Mode Switcher Tabs */}
+            <div className="creation-mode-tabs">
+              <button
+                type="button"
+                className={`mode-tab ${entryMode === 'manual' ? 'active' : ''}`}
+                onClick={() => setEntryMode('manual')}
+              >
+                <KeyRound size={15} />
+                <span>Enter Key Manually</span>
+              </button>
+              <button
+                type="button"
+                className={`mode-tab ${entryMode === 'generate' ? 'active' : ''}`}
+                onClick={() => setEntryMode('generate')}
+              >
+                <Sparkles size={15} />
+                <span>Auto-Generate Token</span>
+              </button>
+            </div>
+
             <form onSubmit={handleCreate} className="modal-form">
+              {/* If in manual mode, secret input comes FIRST and is required */}
+              {entryMode === 'manual' ? (
+                <div>
+                  <label>
+                    Your API Secret Key / Token (Required)
+                    <div className="manual-input-wrap">
+                      <input
+                        required
+                        type={showSecretText ? 'text' : 'password'}
+                        placeholder={
+                          provider === 'Google Gemini'
+                            ? 'Paste your Gemini API key (e.g. AIzaSy...)'
+                            : provider === 'Nebius Token Factory'
+                            ? 'Paste your Nebius API token (e.g. nebius_...)'
+                            : provider === 'OpenAI'
+                            ? 'Paste your OpenAI API key (e.g. sk-proj-...)'
+                            : 'Paste your secret API key token...'
+                        }
+                        value={customSecret}
+                        onChange={e => handleSecretChange(e.target.value)}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        className="eye-btn"
+                        onClick={() => setShowSecretText(!showSecretText)}
+                        aria-label={showSecretText ? 'Hide secret' : 'Show secret'}
+                      >
+                        {showSecretText ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </label>
+
+                  {customSecret && (
+                    <div className="detected-badge">
+                      <ShieldCheck size={13} />
+                      <span>
+                        {customSecret.startsWith('AIzaSy')
+                          ? 'Recognized: Google Gemini API Key format'
+                          : customSecret.startsWith('nebius_')
+                          ? 'Recognized: Nebius Token Factory Key format'
+                          : customSecret.startsWith('sk-')
+                          ? 'Recognized: OpenAI API Key format'
+                          : 'Valid token secret format'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
               <label>
-                Key Description / Identifier
+                Key Name / Description
                 <input
                   type="text"
                   required
-                  placeholder="e.g. GitHub Actions CI/CD Agent, Gemini 2.5 Provider"
+                  placeholder={
+                    entryMode === 'manual'
+                      ? 'e.g. My Personal Gemini 2.5 Key, Nebius Nemotron Engine'
+                      : 'e.g. GitHub Actions Runner, CI/CD Automated Testing'
+                  }
                   value={name}
                   onChange={e => setName(e.target.value)}
                 />
@@ -556,10 +745,11 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
                     value={provider}
                     onChange={e => setProvider(e.target.value as ApiKeyProvider)}
                   >
-                    <option value="ProjectPilot">ProjectPilot Native Token</option>
                     <option value="Google Gemini">Google Gemini (AI Engine)</option>
-                    <option value="OpenAI">OpenAI GPT-4o / Reasoning</option>
-                    <option value="Anthropic Claude">Anthropic Claude 3.7</option>
+                    <option value="Nebius Token Factory">Nebius Token Factory (NVIDIA Nemotron)</option>
+                    <option value="OpenAI">OpenAI (GPT-4o / Reasoning)</option>
+                    <option value="Anthropic Claude">Anthropic Claude (3.7 Sonnet)</option>
+                    <option value="ProjectPilot">ProjectPilot Native Vault</option>
                     <option value="Custom">Custom Agent Webhook</option>
                   </select>
                 </label>
@@ -572,25 +762,10 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
                   >
                     <option value="Production">Production (Live)</option>
                     <option value="Staging">Staging (Pre-release)</option>
-                    <option value="Development">Development (Local sandbox)</option>
+                    <option value="Development">Development (Sandbox)</option>
                   </select>
                 </label>
               </div>
-
-              {provider !== 'ProjectPilot' && (
-                <label>
-                  Custom Secret Token (Optional)
-                  <input
-                    type="password"
-                    placeholder={`Enter your ${provider} secret (leave blank to auto-generate)`}
-                    value={customSecret}
-                    onChange={e => setCustomSecret(e.target.value)}
-                  />
-                  <small className="field-hint">
-                    Leave blank to generate an authenticated synthetic key for simulation and testing.
-                  </small>
-                </label>
-              )}
 
               <label>
                 Permissions & Access Scopes
@@ -624,13 +799,15 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
                     setExpiryDays(e.target.value === 'never' ? null : Number(e.target.value))
                   }
                 >
+                  <option value="never">Never Expire (Recommended for personal keys)</option>
                   <option value="30">30 Days</option>
                   <option value="60">60 Days</option>
-                  <option value="90">90 Days (Recommended)</option>
+                  <option value="90">90 Days</option>
                   <option value="365">1 Year</option>
-                  <option value="never">Never Expire</option>
                 </select>
               </label>
+
+              {formError && <div className="form-error">{formError}</div>}
 
               <div className="modal-actions">
                 <button
@@ -641,7 +818,15 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
                   Cancel
                 </button>
                 <button type="submit" className="btn">
-                  <Key size={15} /> Generate API Key
+                  {entryMode === 'manual' ? (
+                    <>
+                      <ShieldCheck size={15} /> Save & Authenticate Key
+                    </>
+                  ) : (
+                    <>
+                      <Key size={15} /> Generate API Key
+                    </>
+                  )}
                 </button>
               </div>
             </form>
@@ -707,6 +892,17 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Toast notifications */}
+      {toast && (
+        <div className="toast">
+          <Check size={15} />
+          {toast}
+          <button onClick={() => setToast('')} aria-label="Close notification">
+            <X size={14} />
+          </button>
         </div>
       )}
     </div>

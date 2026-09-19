@@ -97,6 +97,17 @@
 .scope-selector-card p { font-size: 10px; color: var(--muted); line-height: 1.4; margin: 0; }
 .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px; }
 
+.creation-mode-tabs { display: grid; grid-template-columns: 1fr 1fr; background: #08121a; border-bottom: 1px solid var(--line); }
+.mode-tab { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 14px 16px; background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--muted); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s ease; }
+.mode-tab:hover { color: var(--text); background: rgba(255, 255, 255, .02); }
+.mode-tab.active { color: var(--lime); border-bottom-color: var(--lime); background: rgba(167, 255, 82, .04); }
+.manual-input-wrap { position: relative; display: flex; align-items: center; }
+.manual-input-wrap input { padding-right: 44px; }
+.manual-input-wrap .eye-btn { position: absolute; right: 0; top: 0; height: 100%; width: 42px; border: 0; background: transparent; color: var(--muted); display: grid; place-items: center; cursor: pointer; }
+.manual-input-wrap .eye-btn:hover { color: var(--text); }
+.detected-badge { display: inline-flex; align-items: center; gap: 6px; color: var(--lime); font-family: var(--mono); font-size: 10px; margin-top: 5px; }
+.quick-save-link { color: var(--lime); font-size: 10px; font-family: var(--mono); background: transparent; border: 0; padding: 0; text-decoration: underline; cursor: pointer; margin-left: 6px; }
+
 .reveal-modal { max-width: 580px; }
 .reveal-body { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
 .security-alert-box { display: flex; gap: 14px; padding: 16px; background: #251b14; border: 1px solid #6b4d2d; color: var(--amber); font-size: 11px; line-height: 1.6; }
