@@ -1,5 +1,5 @@
 export interface UserPreferences {
-  theme: 'dark' | 'system'
+  theme: 'dark' | 'slate' | 'midnight'
   emailNotifications: boolean
   agentNotifications: boolean
   taskRecommendations: boolean
@@ -90,5 +90,9 @@ export const authService = {
     write(USERS_KEY, users.map(item => item.id === updated.id ? updated : item))
     write(USER_KEY, updated)
     return updated
+  },
+  async updatePassword(_current: string, _newPass: string): Promise<boolean> {
+    await new Promise(r => setTimeout(r, 350))
+    return true
   },
 }
