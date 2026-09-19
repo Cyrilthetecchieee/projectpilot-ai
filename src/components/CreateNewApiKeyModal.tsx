@@ -14,7 +14,6 @@ import {
 } from 'lucide-react'
 import { apiKeyService } from '../services/apiKeyService'
 import type {
-  ApiKeyEnvironment,
   ApiKeyProvider,
   ApiKeyScope,
   CredentialMetadata,
@@ -68,11 +67,8 @@ function CreateNewApiKeyModalContent({
   onSaved: (credential: CredentialMetadata) => void
 }) {
   const [provider, setProvider] = useState<ApiKeyProvider>('Google Gemini')
-  const [environment, setEnvironment] = useState<ApiKeyEnvironment>('Production')
   const [secretKey, setSecretKey] = useState('')
   const [showSecret, setShowSecret] = useState(false)
-  const [name, setName] = useState('Axiora Gemini Production')
-  const [nameTouched, setNameTouched] = useState(false)
   const [selectedScopes, setSelectedScopes] = useState<ApiKeyScope[]>([
     'run:agents',
     'read:project',
@@ -85,19 +81,7 @@ function CreateNewApiKeyModalContent({
 
   const handleProviderChange = (newP: ApiKeyProvider) => {
     setProvider(newP)
-    if (!nameTouched) {
-      const pLabel = newP === 'Google Gemini' ? 'Gemini' : newP
-      setName(`Axiora ${pLabel} ${environment}`)
-    }
     if (formError) setFormError('')
-  }
-
-  const handleEnvironmentChange = (newEnv: ApiKeyEnvironment) => {
-    setEnvironment(newEnv)
-    if (!nameTouched) {
-      const pLabel = provider === 'Google Gemini' ? 'Gemini' : provider
-      setName(`Axiora ${pLabel} ${newEnv}`)
-    }
   }
 
   const getPlaceholderForProvider = (p: ApiKeyProvider): string => {
@@ -141,6 +125,7 @@ function CreateNewApiKeyModalContent({
           'manage:keys',
         ])
       }
+      if (formError) setFormError('')
       return
     }
 
@@ -149,6 +134,7 @@ function CreateNewApiKeyModalContent({
     } else {
       setSelectedScopes([...selectedScopes, scopeId])
     }
+    if (formError) setFormError('')
   }
 
   const validateSecret = (): string | null => {
@@ -159,8 +145,8 @@ function CreateNewApiKeyModalContent({
     if (!provider) {
       return 'Provider is required.'
     }
-    if (!name.trim()) {
-      return 'Key name is required.'
+    if (selectedScopes.length === 0) {
+      return 'At least one permission is required.'
     }
 
     // Provider-specific format checks
@@ -198,10 +184,8 @@ function CreateNewApiKeyModalContent({
     setIsSubmitting(true)
     try {
       const created = await apiKeyService.addProviderKey({
-        name: name.trim(),
         provider,
         secretKey: secretKey.trim(),
-        environment,
         permissions: selectedScopes,
         expiresInDays: expiryDays,
       })
@@ -242,7 +226,7 @@ function CreateNewApiKeyModalContent({
             <p style={{ color: 'var(--muted)', fontSize: '11.5px', marginTop: '4px' }}>
               {savedCredential
                 ? 'Your API key has been securely added to this workspace.'
-                : 'Add an existing API key or credential from your AI provider.'}
+                : 'Add an existing API key from your AI provider.'}
             </p>
           </div>
           <button
@@ -270,7 +254,7 @@ function CreateNewApiKeyModalContent({
               <div>
                 <strong style={{ color: 'var(--lime)' }}>API Key Added Successfully</strong>
                 <p style={{ marginTop: '4px', color: 'var(--muted)', fontSize: '11.5px', lineHeight: 1.5 }}>
-                  Your API key has been securely added to this workspace. It is protected by server-side vault encryption and will never be shown in cleartext again.
+                  Your API key has been securely added to this workspace.
                 </p>
               </div>
             </div>
@@ -285,16 +269,9 @@ function CreateNewApiKeyModalContent({
               </div>
 
               <div className="detail-item">
-                <small>Key Name</small>
-                <strong>{savedCredential.name}</strong>
-              </div>
-
-              <div className="detail-item">
-                <small>Deployment Environment</small>
+                <small>Type</small>
                 <strong>
-                  <span className={`env-badge env-${savedCredential.environment.toLowerCase()}`}>
-                    {savedCredential.environment}
-                  </span>
+                  <span className="badge badge-provider">Provider API Key</span>
                 </strong>
               </div>
 
@@ -305,18 +282,17 @@ function CreateNewApiKeyModalContent({
                 </strong>
               </div>
 
-              <div className="detail-item" style={{ gridColumn: '1 / -1' }}>
-                <small>Masked Credential</small>
+              <div className="detail-item">
+                <small>Key</small>
                 <code
                   style={{
                     fontFamily: 'var(--mono)',
                     color: 'var(--lime)',
                     fontSize: '13px',
-                    marginTop: '4px',
                     letterSpacing: '0.04em',
                   }}
                 >
-                  {savedCredential.maskedValue}
+                  {`****${savedCredential.maskedValue.slice(-3)}`}
                 </code>
               </div>
             </div>
@@ -334,37 +310,21 @@ function CreateNewApiKeyModalContent({
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="modal-form">
-            {/* Row 1: Provider / Model Architecture & Deployment Environment */}
-            <div className="form-grid">
-              <label>
-                Provider / Model Architecture
-                <div className="select-with-icon-wrap" style={{ position: 'relative' }}>
-                  <select
-                    value={provider}
-                    onChange={e => handleProviderChange(e.target.value as ApiKeyProvider)}
-                  >
-                    <option value="Google Gemini">Google Gemini</option>
-                    <option value="OpenAI">OpenAI</option>
-                    <option value="NVIDIA">NVIDIA</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-              </label>
+            {/* Field 1: Provider / Model Architecture */}
+            <label>
+              Provider / Model Architecture
+              <select
+                value={provider}
+                onChange={e => handleProviderChange(e.target.value as ApiKeyProvider)}
+              >
+                <option value="Google Gemini">Google Gemini</option>
+                <option value="OpenAI">OpenAI</option>
+                <option value="NVIDIA">NVIDIA</option>
+                <option value="Other">Other</option>
+              </select>
+            </label>
 
-              <label>
-                Deployment Environment
-                <select
-                  value={environment}
-                  onChange={e => handleEnvironmentChange(e.target.value as ApiKeyEnvironment)}
-                >
-                  <option value="Development">Development</option>
-                  <option value="Staging">Staging</option>
-                  <option value="Production">Production</option>
-                </select>
-              </label>
-            </div>
-
-            {/* Row 2: API Key / Secret Key with eye icon toggle */}
+            {/* Field 2: API Key / Secret Key with eye icon toggle */}
             <label>
               API Key / Secret Key
               <div className="manual-input-wrap">
@@ -393,23 +353,7 @@ function CreateNewApiKeyModalContent({
               </div>
             </label>
 
-            {/* Row 3: Key Name / Description */}
-            <label>
-              Key Name / Description
-              <input
-                type="text"
-                required
-                placeholder="e.g. Axiora Gemini Production"
-                value={name}
-                onChange={e => {
-                  setName(e.target.value)
-                  setNameTouched(true)
-                  if (formError) setFormError('')
-                }}
-              />
-            </label>
-
-            {/* Row 4: Permissions & Access Scopes */}
+            {/* Field 3: Permissions & Access Scopes */}
             <div>
               <span
                 style={{
@@ -453,7 +397,7 @@ function CreateNewApiKeyModalContent({
               </div>
             </div>
 
-            {/* Row 5: Key Expiration */}
+            {/* Field 4: Key Expiration */}
             <label>
               Key Expiration
               <select
