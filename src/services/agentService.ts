@@ -1,4 +1,5 @@
 import type { ArchitectureComponent, ArchitectureConnection, ArchitectureDataFlow, ArchitectureDecision, Project, Requirement, Risk, Task, TestCase } from '../types'
+import type { ArchitectureComponent, ArchitectureConnection, ArchitectureDataFlow, ArchitectureDecision, MilestoneData, Project, Requirement, Risk, Task, TestCase } from '../types'
 import { apiKeyService } from './apiKeyService'
 
 const wait = (ms = 850) => new Promise(resolve => setTimeout(resolve, ms))
@@ -38,7 +39,19 @@ interface ArchitectureApiResponse {
   duration_ms: number
 }
 
+interface PlannerApiResponse {
+  summary: string
+  milestones: { id: string; title: string; description: string; order: number }[]
+  tasks: { id: string; milestone_id: string; title: string; description: string; priority: 'critical' | 'high' | 'medium' | 'low'; status: string; estimated_effort: string; dependencies: string[]; related_requirements: string[]; related_components: string[]; success_criteria: string[] }[]
+  critical_path: string[]
+  planning_notes: string[]
+  provider: string
+  model: string
+  duration_ms: number
+}
+
 const priorityLabel = (priority: RequirementApiResponse['functional_requirements'][number]['priority']): Requirement['priority'] => priority.charAt(0).toUpperCase() + priority.slice(1) as Requirement['priority']
+const statusLabel = (status: string): Task['status'] => status === 'completed' ? 'Completed' : status === 'in_progress' ? 'In Progress' : 'Pending'
 
 export const agentService = {
   getEngineStatus() {
@@ -77,6 +90,37 @@ export const agentService = {
     return { architecture, analysis }
   },
   async generatePlan(project: Project) { return run(project.tasks) },
+  async generatePlan(project: Project): Promise<{ tasks: Task[]; milestones: MilestoneData[]; analysis: PlannerApiResponse }> {
+    const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(project.id)}/agents/plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ project: { id: project.id, name: project.name, idea: project.idea, objective: project.objective, type: project.type, technologies: project.technologies, constraints: project.constraints, timeline: project.timeline, stage: project.stage } }),
+    })
+    if (!response.ok) {
+      const body = await response.json().catch(() => null) as { detail?: { code?: string; message?: string } | string } | null
+      const detail = typeof body?.detail === 'string' ? body.detail : body?.detail?.message
+      throw new Error(detail || `Planner Agent request failed (${response.status})`)
+    }
+    const analysis = await response.json() as PlannerApiResponse
+    const criticalSet = new Set(analysis.critical_path)
+    const milestoneMap = new Map(analysis.milestones.map(m => [m.id, m.title]))
+    const tasks: Task[] = analysis.tasks.map(task => ({
+      id: task.id,
+      title: task.title,
+      milestone: milestoneMap.get(task.milestone_id) || task.milestone_id,
+      priority: priorityLabel(task.priority),
+      status: statusLabel(task.status),
+      successCriteria: task.success_criteria.join('; ') || task.description,
+      estimatedEffort: task.estimated_effort,
+      dependencies: task.dependencies,
+      relatedRequirements: task.related_requirements,
+      relatedComponents: task.related_components,
+      successCriteriaList: task.success_criteria,
+      isCriticalPath: criticalSet.has(task.id),
+    }))
+    const milestones: MilestoneData[] = analysis.milestones.map(m => ({ id: m.id, title: m.title, description: m.description, order: m.order }))
+    return { tasks, milestones, analysis }
+  },
   async reviewProject(project: Project): Promise<Risk[]> { return run(project.risks) },
   async generateTests(project: Project): Promise<TestCase[]> { return run(project.tests) },
   async getNextAction(project: Project) { return run(project.nextAction) },
