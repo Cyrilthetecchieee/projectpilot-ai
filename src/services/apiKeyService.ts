@@ -34,7 +34,7 @@ export const maskSecret = (secret: string): string => {
     const end = secret.slice(-4)
     return `${prefix}_••••${end}`
   }
-  if (secret.startsWith('AIzaSy')) {
+  if (secret.startsWith('AIza')) {
     return `AIza...${secret.slice(-3)}`
   }
   if (secret.startsWith('sk-proj-')) {
@@ -43,7 +43,10 @@ export const maskSecret = (secret: string): string => {
   if (secret.startsWith('sk-')) {
     return `sk-...${secret.slice(-4)}`
   }
-  if (secret.length <= 10) return '••••••••'
+  if (secret.startsWith('nvapi-')) {
+    return `nvapi-...${secret.slice(-4)}`
+  }
+  if (secret.length <= 10) return `••••••••••${secret.slice(-3)}`
   return `${secret.slice(0, 4)}...${secret.slice(-3)}`
 }
 

@@ -1,16 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
+import React, { useState } from 'react'
 import {
   AlertTriangle,
   Check,
-  ChevronDown,
   Code2,
   Copy,
-  Download,
   Eye,
   EyeOff,
   Info,
   Key,
-  KeyRound,
   Plus,
   RefreshCw,
   Search,
@@ -25,26 +22,15 @@ import {
 } from 'lucide-react'
 import { apiKeyService } from '../services/apiKeyService'
 import type {
-  ApiKeyEnvironment,
-  ApiKeyProvider,
-  ApiKeyScope,
   CredentialMetadata,
-  CredentialType,
   Project,
 } from '../types'
+import { CreateNewApiKeyModal } from './CreateNewApiKeyModal'
 
 interface ApiKeysViewProps {
   project: Project
   onEngineChange?: () => void
 }
-
-const AVAILABLE_SCOPES: { id: ApiKeyScope; label: string; desc: string }[] = [
-  { id: 'run:agents', label: 'Execute Agents', desc: 'Run configured agents and workflows.' },
-  { id: 'read:project', label: 'Read Project', desc: 'Read project requirements, architecture, tasks and tests.' },
-  { id: 'write:project', label: 'Write Project', desc: 'Create or update project data.' },
-  { id: 'manage:keys', label: 'Manage Keys', desc: 'Create, configure and revoke project credentials.' },
-  { id: 'admin', label: 'Full Admin Access', desc: 'Unrestricted administrative access.' },
-]
 
 export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
   const [credentials, setCredentials] = useState<CredentialMetadata[]>(() =>
@@ -55,41 +41,15 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
   const [filter, setFilter] = useState<'all' | 'Active' | 'Revoked'>('all')
   const [toast, setToast] = useState('')
 
-  // Dropdown button state
-  const [showCreateDropdown, setShowCreateDropdown] = useState(false)
-  const dropdownRef = useRef<HTMLDivElement>(null)
+  // Single modal state for "+ Create New API Key"
+  const [showCreateModal, setShowCreateModal] = useState(false)
 
-  // Active modal state
-  const [activeModal, setActiveModal] = useState<
-    'none' | 'platform_token' | 'provider_key' | 'token_result' | 'details' | 'rotate'
-  >('none')
-
-  // Form states for modals
-  const [name, setName] = useState('')
-  const [provider, setProvider] = useState<ApiKeyProvider>('Google Gemini')
-  const [environment, setEnvironment] = useState<ApiKeyEnvironment>('Production')
-  const [selectedScopes, setSelectedScopes] = useState<ApiKeyScope[]>([
-    'run:agents',
-    'read:project',
-    'write:project',
-  ])
-  const [customSecret, setCustomSecret] = useState('')
-  const [showSecretText, setShowSecretText] = useState(false)
-  const [expiryDays, setExpiryDays] = useState<number | null>(90)
-  const [formError, setFormError] = useState('')
-
-  // Success state for newly generated platform token
-  const [generatedResult, setGeneratedResult] = useState<{
-    token: string
-    name: string
-    credentialType: CredentialType
-  } | null>(null)
-  const [copiedGeneratedToken, setCopiedGeneratedToken] = useState(false)
-
-  // Details & Rotate modal targets
+  // Details & Rotate modal targets for table row actions
+  const [activeModal, setActiveModal] = useState<'none' | 'details' | 'rotate'>('none')
   const [selectedCredential, setSelectedCredential] = useState<CredentialMetadata | null>(null)
   const [rotateNewSecret, setRotateNewSecret] = useState('')
   const [showRotateSecretText, setShowRotateSecretText] = useState(false)
+  const [formError, setFormError] = useState('')
 
   // Row copy feedback
   const [copiedKeyId, setCopiedKeyId] = useState<string | null>(null)
@@ -98,17 +58,6 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
   const [quickTestKey, setQuickTestKey] = useState('')
   const [testResult, setTestResult] = useState<{ message: string; valid: boolean } | null>(null)
   const [codeTab, setCodeTab] = useState<'curl' | 'ts' | 'python'>('curl')
-
-  // Close dropdown on outside click
-  useEffect(() => {
-    const handleOutsideClick = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setShowCreateDropdown(false)
-      }
-    }
-    document.addEventListener('mousedown', handleOutsideClick)
-    return () => document.removeEventListener('mousedown', handleOutsideClick)
-  }, [])
 
   const showNotification = (msg: string) => {
     setToast(msg)
@@ -122,133 +71,16 @@ export function ApiKeysView({ project, onEngineChange }: ApiKeysViewProps) {
     if (onEngineChange) onEngineChange()
   }
 
-  const handleCopy = (text: string, id?: string) => {
+  const handleKeySaved = (cred: CredentialMetadata) => {
+    reload()
+    showNotification(`API Key "${cred.name}" added successfully.`)
+  }
+
+  const handleCopy = (text: string, id: string) => {
     navigator.clipboard.writeText(text)
-    if (id) {
-      setCopiedKeyId(id)
-      setTimeout(() => setCopiedKeyId(null), 2000)
-    } else {
-      setCopiedGeneratedToken(true)
-      setTimeout(() => setCopiedGeneratedToken(false), 2000)
-    }
-    showNotification('Copied to clipboard.')
-  }
-
-  const handleDownloadToken = (token: string, tokenName: string) => {
-    const content = `# ProjectPilot API Credential
-# Workspace: ${project.name}
-# Description: ${tokenName}
-# Generated: ${new Date().toISOString()}
-PROJECTPILOT_API_TOKEN=${token}
-`
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `projectpilot-token-${Date.now()}.txt`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
-    showNotification('Token downloaded securely.')
-  }
-
-  // Open "Generate Platform Token" modal
-  const openPlatformTokenModal = () => {
-    setShowCreateDropdown(false)
-    setName('')
-    setProvider('Google Gemini')
-    setEnvironment('Production')
-    // Default: Execute Agents, Read Project, Write Project. Full Admin Access is NOT checked by default.
-    setSelectedScopes(['run:agents', 'read:project', 'write:project'])
-    setExpiryDays(90)
-    setFormError('')
-    setActiveModal('platform_token')
-  }
-
-  // Open "Add Provider API Key" modal
-  const openProviderKeyModal = () => {
-    setShowCreateDropdown(false)
-    setName('')
-    setProvider('Google Gemini')
-    setEnvironment('Production')
-    setCustomSecret('')
-    setShowSecretText(false)
-    setSelectedScopes(['run:agents', 'read:project', 'write:project'])
-    setExpiryDays(90)
-    setFormError('')
-    setActiveModal('provider_key')
-  }
-
-  const toggleScope = (scopeId: ApiKeyScope) => {
-    if (scopeId === 'admin') {
-      if (selectedScopes.includes('admin')) {
-        setSelectedScopes(['run:agents', 'read:project', 'write:project'])
-      } else {
-        setSelectedScopes(['admin', 'run:agents', 'read:project', 'write:project', 'manage:keys'])
-      }
-      return
-    }
-
-    if (selectedScopes.includes(scopeId)) {
-      setSelectedScopes(selectedScopes.filter(s => s !== scopeId && s !== 'admin'))
-    } else {
-      setSelectedScopes([...selectedScopes, scopeId])
-    }
-  }
-
-  // Submit Generate Platform Token
-  const handleGeneratePlatformToken = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setFormError('')
-
-    try {
-      const { credential, rawToken } = await apiKeyService.generatePlatformToken({
-        name: name.trim() || 'Workspace Platform Token',
-        provider,
-        environment,
-        permissions: selectedScopes,
-        expiresInDays: expiryDays,
-      })
-
-      reload()
-      setGeneratedResult({
-        token: rawToken,
-        name: credential.name,
-        credentialType: 'PLATFORM_TOKEN',
-      })
-      setActiveModal('token_result')
-    } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : 'Failed to generate token')
-    }
-  }
-
-  // Submit Add Provider API Key
-  const handleAddProviderKey = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setFormError('')
-
-    if (!customSecret.trim()) {
-      setFormError('API Secret Key is required.')
-      return
-    }
-
-    try {
-      const cred = await apiKeyService.addProviderKey({
-        name: name.trim() || `${provider} Key`,
-        provider,
-        secretKey: customSecret.trim(),
-        environment,
-        permissions: selectedScopes,
-        expiresInDays: expiryDays,
-      })
-
-      reload()
-      setActiveModal('none')
-      showNotification(`Provider API Key "${cred.name}" saved securely.`)
-    } catch (err: unknown) {
-      setFormError(err instanceof Error ? err.message : 'Failed to save provider key')
-    }
+    setCopiedKeyId(id)
+    setTimeout(() => setCopiedKeyId(null), 2000)
+    showNotification('Copied masked reference.')
   }
 
   // Rotate Credential
@@ -264,17 +96,8 @@ PROJECTPILOT_API_TOKEN=${token}
       )
 
       reload()
-      if (res.rawToken) {
-        setGeneratedResult({
-          token: res.rawToken,
-          name: res.credential.name,
-          credentialType: 'PLATFORM_TOKEN',
-        })
-        setActiveModal('token_result')
-      } else {
-        setActiveModal('none')
-        showNotification(`Credential "${res.credential.name}" rotated successfully.`)
-      }
+      setActiveModal('none')
+      showNotification(`Credential "${res.credential.name}" rotated successfully.`)
     } catch (err: unknown) {
       setFormError(err instanceof Error ? err.message : 'Rotation failed')
     }
@@ -341,50 +164,16 @@ PROJECTPILOT_API_TOKEN=${token}
           </p>
         </div>
 
-        {/* Top actions: Single primary dropdown button */}
+        {/* Top actions: Single primary button */}
         <div className="header-actions">
-          <div className="create-key-dropdown-wrap" ref={dropdownRef}>
-            <button
-              type="button"
-              className="btn"
-              onClick={() => setShowCreateDropdown(!showCreateDropdown)}
-              aria-expanded={showCreateDropdown}
-            >
-              <Plus size={16} />
-              Create New API Key
-              <ChevronDown size={14} />
-            </button>
-
-            {showCreateDropdown && (
-              <div className="create-key-menu" role="menu">
-                <button
-                  type="button"
-                  className="create-key-menu-item"
-                  onClick={openPlatformTokenModal}
-                  role="menuitem"
-                >
-                  <Sparkles size={16} />
-                  <div>
-                    <strong>Generate Platform Token</strong>
-                    <span>Create a secure workspace authentication token</span>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  className="create-key-menu-item"
-                  onClick={openProviderKeyModal}
-                  role="menuitem"
-                >
-                  <KeyRound size={16} />
-                  <div>
-                    <strong>Add Provider API Key</strong>
-                    <span>Connect existing Google Gemini, OpenAI, or NVIDIA key</span>
-                  </div>
-                </button>
-              </div>
-            )}
-          </div>
+          <button
+            type="button"
+            className="btn"
+            onClick={() => setShowCreateModal(true)}
+          >
+            <Plus size={16} />
+            Create New API Key
+          </button>
         </div>
       </div>
 
@@ -514,13 +303,13 @@ PROJECTPILOT_API_TOKEN=${token}
           <div className="empty-state">
             <Key size={32} />
             <h3>No credentials match your filter</h3>
-            <p>Generate a platform token or add your AI provider API key to get started.</p>
+            <p>Add your AI provider API key to configure this workspace.</p>
             <button
               type="button"
               className="btn"
-              onClick={openPlatformTokenModal}
+              onClick={() => setShowCreateModal(true)}
             >
-              <Plus size={15} /> Generate Platform Token
+              <Plus size={15} /> Create New API Key
             </button>
           </div>
         ) : (
@@ -715,7 +504,7 @@ PROJECTPILOT_API_TOKEN=${token}
           {codeTab === 'curl' && (
             <pre>
               <code>{`curl -X POST https://api.projectpilot.ai/v1/agents/run \\
-  -H "Authorization: Bearer ${credentials[0]?.maskedValue || 'axr_live_...'}" \\
+  -H "Authorization: Bearer ${credentials[0]?.maskedValue || 'AIza...7X9'}" \\
   -H "Content-Type: application/json" \\
   -d '{
     "agent": "Requirement Agent",
@@ -730,7 +519,7 @@ PROJECTPILOT_API_TOKEN=${token}
               <code>{`import { ProjectPilotClient } from '@projectpilot/sdk'
 
 const client = new ProjectPilotClient({
-  apiKey: process.env.PROJECTPILOT_API_KEY, // e.g. ${credentials[0]?.maskedValue || 'axr_live_...'}
+  apiKey: process.env.PROJECTPILOT_API_KEY, // e.g. ${credentials[0]?.maskedValue || 'AIza...7X9'}
   projectId: '${project.id}'
 })
 
@@ -748,7 +537,7 @@ console.log('Detected engineering gaps:', risks.length)`}</code>
               <code>{`from projectpilot import ProjectPilot
 
 pilot = ProjectPilot(
-    api_key="${credentials[0]?.maskedValue || 'axr_live_...'}",
+    api_key="${credentials[0]?.maskedValue || 'AIza...7X9'}",
     project_id="${project.id}"
 )
 
@@ -761,370 +550,16 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
       </div>
 
       {/* ========================================================================= */}
-      {/* 1. GENERATE PLATFORM TOKEN MODAL                                         */}
+      {/* 1. CREATE NEW API KEY MODAL (SINGLE UNIFIED MODAL)                        */}
       {/* ========================================================================= */}
-      {activeModal === 'platform_token' && (
-        <div className="modal-backdrop" onClick={() => setActiveModal('none')}>
-          <div className="modal-window" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-text">
-                <span className="eyebrow">PLATFORM CREDENTIAL</span>
-                <h2>Generate New API Token</h2>
-                <p style={{ color: 'var(--muted)', fontSize: '11.5px', marginTop: '4px' }}>
-                  Create a secure platform token for authenticating requests to this workspace.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="close-modal-btn"
-                onClick={() => setActiveModal('none')}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleGeneratePlatformToken} className="modal-form">
-              <label>
-                Key Name / Description
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Smart Helmet Agent Token, CI/CD Runner"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  autoFocus
-                />
-              </label>
-
-              <div className="form-grid">
-                <label>
-                  Provider / Model Architecture
-                  <select
-                    value={provider}
-                    onChange={e => setProvider(e.target.value as ApiKeyProvider)}
-                  >
-                    <option value="Google Gemini">Google Gemini</option>
-                    <option value="OpenAI">OpenAI</option>
-                    <option value="NVIDIA">NVIDIA</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </label>
-
-                <label>
-                  Deployment Environment
-                  <select
-                    value={environment}
-                    onChange={e => setEnvironment(e.target.value as ApiKeyEnvironment)}
-                  >
-                    <option value="Development">Development</option>
-                    <option value="Staging">Staging</option>
-                    <option value="Production">Production</option>
-                  </select>
-                </label>
-              </div>
-
-              <label>
-                Permissions & Access Scopes
-                <div className="scopes-grid">
-                  {AVAILABLE_SCOPES.map(scope => {
-                    const active = selectedScopes.includes(scope.id)
-                    return (
-                      <div
-                        key={scope.id}
-                        className={`scope-selector-card ${active ? 'scope-selected' : ''}`}
-                        onClick={() => toggleScope(scope.id)}
-                      >
-                        <div className="scope-card-top">
-                          <span className={`scope-checkbox ${active ? 'checked' : ''}`}>
-                            {active && <Check size={12} />}
-                          </span>
-                          <b>{scope.label}</b>
-                        </div>
-                        <p>{scope.desc}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </label>
-
-              <label>
-                Key Expiration
-                <select
-                  value={expiryDays === null ? 'never' : String(expiryDays)}
-                  onChange={e =>
-                    setExpiryDays(e.target.value === 'never' ? null : Number(e.target.value))
-                  }
-                >
-                  <option value="30">30 Days</option>
-                  <option value="90">90 Days (Default)</option>
-                  <option value="365">1 Year</option>
-                  <option value="never">Never Expire</option>
-                </select>
-              </label>
-
-              {formError && <div className="form-error">{formError}</div>}
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setActiveModal('none')}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn">
-                  <Key size={15} /> Generate Token
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <CreateNewApiKeyModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        onSaved={handleKeySaved}
+      />
 
       {/* ========================================================================= */}
-      {/* 2. ADD PROVIDER API KEY MODAL                                            */}
-      {/* ========================================================================= */}
-      {activeModal === 'provider_key' && (
-        <div className="modal-backdrop" onClick={() => setActiveModal('none')}>
-          <div className="modal-window" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-text">
-                <span className="eyebrow">PROVIDER INTEGRATION</span>
-                <h2>Add Provider API Key</h2>
-                <p style={{ color: 'var(--muted)', fontSize: '11.5px', marginTop: '4px' }}>
-                  Connect an existing API key from your AI provider.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="close-modal-btn"
-                onClick={() => setActiveModal('none')}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleAddProviderKey} className="modal-form">
-              {/* Informational Message */}
-              <div className="informational-notice">
-                <Info size={16} />
-                <span>
-                  This is an API key provided by your AI provider. It is different from a
-                  platform-generated API token.
-                </span>
-              </div>
-
-              <div className="form-grid">
-                <label>
-                  Provider
-                  <select
-                    value={provider}
-                    onChange={e => setProvider(e.target.value as ApiKeyProvider)}
-                  >
-                    <option value="Google Gemini">Google Gemini</option>
-                    <option value="OpenAI">OpenAI</option>
-                    <option value="NVIDIA">NVIDIA</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </label>
-
-                <label>
-                  Deployment Environment
-                  <select
-                    value={environment}
-                    onChange={e => setEnvironment(e.target.value as ApiKeyEnvironment)}
-                  >
-                    <option value="Development">Development</option>
-                    <option value="Staging">Staging</option>
-                    <option value="Production">Production</option>
-                  </select>
-                </label>
-              </div>
-
-              <label>
-                API Secret Key / Token (Required)
-                <div className="manual-input-wrap">
-                  <input
-                    required
-                    type={showSecretText ? 'text' : 'password'}
-                    placeholder={
-                      provider === 'Google Gemini'
-                        ? 'Enter your Gemini API key (e.g. AIzaSy...)'
-                        : provider === 'OpenAI'
-                        ? 'Enter your OpenAI key (e.g. sk-proj-...)'
-                        : provider === 'NVIDIA'
-                        ? 'Enter your NVIDIA NGC / Nemotron API key...'
-                        : 'Enter your AI provider API key...'
-                    }
-                    value={customSecret}
-                    onChange={e => setCustomSecret(e.target.value)}
-                    autoFocus
-                  />
-                  <button
-                    type="button"
-                    className="eye-btn"
-                    onClick={() => setShowSecretText(!showSecretText)}
-                    aria-label={showSecretText ? 'Hide secret' : 'Show secret'}
-                  >
-                    {showSecretText ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </label>
-
-              <label>
-                Key Name / Description
-                <input
-                  type="text"
-                  required
-                  placeholder={`e.g. ${provider} Production Key`}
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                />
-              </label>
-
-              <label>
-                Permissions & Access Scopes
-                <div className="scopes-grid">
-                  {AVAILABLE_SCOPES.map(scope => {
-                    const active = selectedScopes.includes(scope.id)
-                    return (
-                      <div
-                        key={scope.id}
-                        className={`scope-selector-card ${active ? 'scope-selected' : ''}`}
-                        onClick={() => toggleScope(scope.id)}
-                      >
-                        <div className="scope-card-top">
-                          <span className={`scope-checkbox ${active ? 'checked' : ''}`}>
-                            {active && <Check size={12} />}
-                          </span>
-                          <b>{scope.label}</b>
-                        </div>
-                        <p>{scope.desc}</p>
-                      </div>
-                    )
-                  })}
-                </div>
-              </label>
-
-              <label>
-                Key Expiration
-                <select
-                  value={expiryDays === null ? 'never' : String(expiryDays)}
-                  onChange={e =>
-                    setExpiryDays(e.target.value === 'never' ? null : Number(e.target.value))
-                  }
-                >
-                  <option value="90">90 Days (Default)</option>
-                  <option value="30">30 Days</option>
-                  <option value="365">1 Year</option>
-                  <option value="never">Never Expire</option>
-                </select>
-              </label>
-
-              {formError && <div className="form-error">{formError}</div>}
-
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setActiveModal('none')}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn">
-                  <ShieldCheck size={15} /> Save Provider Key
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 3. GENERATED TOKEN RESULT (SUCCESS STATE)                                */}
-      {/* ========================================================================= */}
-      {activeModal === 'token_result' && generatedResult && (
-        <div className="modal-backdrop" onClick={() => setActiveModal('none')}>
-          <div className="modal-window reveal-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-header-text">
-                <span className="eyebrow">
-                  <ShieldCheck size={13} /> PLATFORM AUTHENTICATION
-                </span>
-                <h2>API Token Generated</h2>
-              </div>
-              <button
-                type="button"
-                className="close-modal-btn"
-                onClick={() => {
-                  setGeneratedResult(null)
-                  setActiveModal('none')
-                }}
-                aria-label="Close"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <div className="reveal-body">
-              <div className="security-alert-box">
-                <AlertTriangle size={20} />
-                <div>
-                  <strong>Save this token securely. You may not be able to view it again.</strong>
-                  <p style={{ marginTop: '4px' }}>
-                    Copy or download this token now. After closing this dialog, it will never be displayed in full again.
-                  </p>
-                </div>
-              </div>
-
-              <div className="secret-display-box">
-                <span className="key-tag-name">{generatedResult.name}</span>
-                <div className="secret-input-row">
-                  <code className="secret-code">{generatedResult.token}</code>
-                </div>
-              </div>
-
-              <div className="modal-actions" style={{ marginTop: '10px' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => handleCopy(generatedResult.token)}
-                >
-                  {copiedGeneratedToken ? <Check size={14} /> : <Copy size={14} />}
-                  <span>{copiedGeneratedToken ? 'Copied!' : 'Copy Token'}</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() =>
-                    handleDownloadToken(generatedResult.token, generatedResult.name)
-                  }
-                >
-                  <Download size={14} />
-                  <span>Download Token</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => {
-                    setGeneratedResult(null)
-                    setActiveModal('none')
-                  }}
-                >
-                  Done
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ========================================================================= */}
-      {/* 4. VIEW DETAILS MODAL                                                    */}
+      {/* 2. VIEW DETAILS MODAL                                                     */}
       {/* ========================================================================= */}
       {activeModal === 'details' && selectedCredential && (
         <div className="modal-backdrop" onClick={() => setActiveModal('none')}>
@@ -1256,7 +691,7 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
       )}
 
       {/* ========================================================================= */}
-      {/* 5. ROTATE CREDENTIAL MODAL                                               */}
+      {/* 3. ROTATE CREDENTIAL MODAL                                                */}
       {/* ========================================================================= */}
       {activeModal === 'rotate' && selectedCredential && (
         <div className="modal-backdrop" onClick={() => setActiveModal('none')}>
@@ -1306,7 +741,7 @@ print(f"Generated {len(plan.tasks)} milestones for {pilot.project.name}")`}</cod
                 </label>
               )}
 
-              {formError && <div className="form-error">{formError}</div>}
+              {formError && <div className="form-error-banner">{formError}</div>}
 
               <div className="modal-actions">
                 <button
