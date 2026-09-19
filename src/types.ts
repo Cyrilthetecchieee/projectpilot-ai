@@ -15,23 +15,48 @@ export interface AgentRun { id: string; agent: string; action: string; status: '
 export interface NextAction { title: string; description: string; priority: Priority; effort: string; criteria: string[] }
 export interface Project { id: string; name: string; idea: string; objective: string; type: string; technologies: string[]; constraints: string; timeline: string; stage: string; completion: number; requirements: Requirement[]; architecture: ArchitectureComponent[]; architectureConnections?: ArchitectureConnection[]; architectureDataFlow?: ArchitectureDataFlow[]; architectureDecisions?: ArchitectureDecision[]; architectureGaps?: ArchitectureGap[]; tasks: Task[]; risks: Risk[]; tests: TestCase[]; activity: AgentRun[]; nextAction: NextAction; requirementProblem?: string; requirementConstraints?: string[]; assumptions?: string[]; openQuestions?: string[] }
 
-export type ApiKeyProvider = 'ProjectPilot' | 'Google Gemini' | 'OpenAI' | 'Anthropic Claude' | 'Custom'
-export type ApiKeyEnvironment = 'Production' | 'Staging' | 'Development'
-export type ApiKeyScope = 'read:project' | 'write:project' | 'run:agents' | 'manage:keys' | 'admin'
-export type ApiKeyStatus = 'Active' | 'Revoked' | 'Expired'
+export type CredentialType = 'PLATFORM_TOKEN' | 'PROVIDER_API_KEY'
+export type ApiKeyProvider = 'Google Gemini' | 'OpenAI' | 'NVIDIA' | 'Other'
+export type ApiKeyEnvironment = 'Development' | 'Staging' | 'Production'
+export type ApiKeyScope = 'run:agents' | 'read:project' | 'write:project' | 'manage:keys' | 'admin'
+export type ApiKeyStatus = 'Active' | 'Revoked'
 
-export interface ApiKey {
+export interface CredentialMetadata {
   id: string
   name: string
-  key: string
+  provider: ApiKeyProvider
+  credentialType: CredentialType
+  environment: ApiKeyEnvironment
+  permissions: ApiKeyScope[]
+  scopes: ApiKeyScope[]
+  maskedValue: string
   maskedKey: string
+  key: string
+  secretReference: string
+  createdBy: string
+  createdAt: string
+  expiresAt: string | null
+  lastUsedAt: string | null
+  status: ApiKeyStatus
+}
+
+export type ApiKey = CredentialMetadata
+
+export interface GeneratePlatformTokenPayload {
+  name: string
   provider: ApiKeyProvider
   environment: ApiKeyEnvironment
-  scopes: ApiKeyScope[]
-  status: ApiKeyStatus
-  createdAt: string
-  lastUsedAt: string | null
-  expiresAt: string | null
+  permissions: ApiKeyScope[]
+  expiresInDays?: number | null
+}
+
+export interface AddProviderApiKeyPayload {
+  name: string
+  provider: ApiKeyProvider
+  secretKey: string
+  environment: ApiKeyEnvironment
+  permissions: ApiKeyScope[]
+  expiresInDays?: number | null
 }
 
 export interface CreateApiKeyPayload {
@@ -41,5 +66,6 @@ export interface CreateApiKeyPayload {
   scopes: ApiKeyScope[]
   secretKey?: string
   expiresInDays?: number | null
+  credentialType?: CredentialType
 }
 
