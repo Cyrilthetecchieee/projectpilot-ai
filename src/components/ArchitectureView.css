@@ -40,6 +40,38 @@
   gap: 10px;
 }
 
+.arch-header-actions .btn {
+  border-radius: 8px;
+  min-height: 38px;
+  padding: 0 16px;
+  font-weight: 700;
+  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(167, 255, 82, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.arch-header-actions .btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(167, 255, 82, 0.35);
+}
+
+.arch-header-actions .btn-secondary {
+  border-radius: 8px;
+  background: rgba(14, 26, 34, 0.85);
+  border: 1px solid rgba(44, 73, 67, 0.55);
+  color: #eff5f3;
+  box-shadow: none;
+}
+
+.arch-header-actions .btn-secondary:hover {
+  background: rgba(22, 42, 52, 0.95);
+  border-color: rgba(90, 140, 125, 0.7);
+  transform: translateY(-1px);
+}
+
 /* Executive KPI Metric Ribbon */
 .arch-kpi-grid {
   display: grid;
