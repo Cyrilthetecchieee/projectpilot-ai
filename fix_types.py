@@ -1,42 +1,26 @@
-with open('src/types.ts', 'r', encoding='utf-8') as f:
+import re
+
+with open("src/types.ts", "r", encoding="utf-8") as f:
     content = f.read()
 
-types_addition = """
-export interface RecoveryTaskOption {
-  needed: boolean;
-  title: string;
-  description: string;
-  estimated_effort: string;
-}
+# Remove the block of ApiKey types
+# export type CredentialType = 'PLATFORM_TOKEN' | 'PROVIDER_API_KEY'
+# export type ApiKeyProvider = 'Google Gemini' | 'OpenAI' | 'NVIDIA' | 'Other'
+# export type ApiKeyEnvironment = 'Development' | 'Staging' | 'Production'
+# export type ApiKeyScope = 'run:agents' | 'read:project' | 'write:project' | 'manage:keys' | 'admin'
+# export type ApiKeyStatus = 'Active' | 'Revoked'
 
-export interface IssueAnalysisResponse {
-  issue_summary: string;
-  severity: 'low' | 'medium' | 'high' | 'critical';
-  likely_causes: string[];
-  recommended_fix: string[];
-  affected_requirements: string[];
-  affected_components: string[];
-  blocked_tasks: string[];
-  can_continue_other_tasks: boolean;
-  recommended_next_action: string;
-  recovery_task: RecoveryTaskOption;
-}
+content = re.sub(r"export type CredentialType = 'PLATFORM_TOKEN' \| 'PROVIDER_API_KEY'\n", "", content)
+content = re.sub(r"export type ApiKeyProvider = 'Google Gemini' \| 'OpenAI' \| 'NVIDIA' \| 'Other'\n", "", content)
+content = re.sub(r"export type ApiKeyEnvironment = 'Development' \| 'Staging' \| 'Production'\n", "", content)
+content = re.sub(r"export type ApiKeyScope = 'run:agents' \| 'read:project' \| 'write:project' \| 'manage:keys' \| 'admin'\n", "", content)
+content = re.sub(r"export type ApiKeyStatus = 'Active' \| 'Revoked'\n", "", content)
 
-export interface IssueRecord {
-  id: string;
-  project_id: string;
-  task_id: string;
-  description: string;
-  image_path: string;
-  analysis: IssueAnalysisResponse;
-  status: string;
-  created_at: string;
-  resolved_at: string;
-}
-"""
+# Remove interfaces: CredentialMetadata, ApiKey, AddProviderApiKeyPayload, CreateApiKeyPayload
+content = re.sub(r"export interface CredentialMetadata \{.*?\}\n\n", "", content, flags=re.DOTALL)
+content = re.sub(r"export type ApiKey = CredentialMetadata\n", "", content)
+content = re.sub(r"export interface AddProviderApiKeyPayload \{.*?\}\n", "", content, flags=re.DOTALL)
+content = re.sub(r"export interface CreateApiKeyPayload \{.*?\}\n", "", content, flags=re.DOTALL)
 
-if "IssueAnalysisResponse" not in content:
-    content += "\n" + types_addition
-
-with open('src/types.ts', 'w', encoding='utf-8') as f:
+with open("src/types.ts", "w", encoding="utf-8") as f:
     f.write(content)

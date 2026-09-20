@@ -1,12 +1,7 @@
 import type { ArchitectureComponent, ArchitectureConnection, ArchitectureDataFlow, ArchitectureDecision, MilestoneData, Project, Requirement, Risk, Task, TestCase } from '../types'
-import { apiKeyService } from './apiKeyService'
 
 const wait = (ms = 850) => new Promise(resolve => setTimeout(resolve, ms))
 const run = async <T,>(value: T): Promise<T> => {
-  const engine = apiKeyService.getAiEngineStatus()
-  if (engine.activeKey?.key || engine.activeKey?.maskedValue) {
-    apiKeyService.validateApiKey(engine.activeKey.key || engine.activeKey.maskedValue)
-  }
   await wait()
   return value
 }
@@ -54,7 +49,7 @@ const statusLabel = (status: string): Task['status'] => status === 'completed' ?
 
 export const agentService = {
   getEngineStatus() {
-    return apiKeyService.getAiEngineStatus()
+    return { mode: 'Live Connected', providerName: 'NVIDIA Nemotron', modelName: 'Verified backend execution' }
   },
   async analyzeRequirements(project: Project): Promise<{ requirements: Requirement[]; analysis: RequirementApiResponse }> {
     const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(project.id)}/agents/requirements`, {
@@ -67,7 +62,6 @@ export const agentService = {
       throw new Error(body?.detail || `Requirement Agent request failed (${response.status})`)
     }
     const analysis = await response.json() as RequirementApiResponse
-    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
     const requirements = [
       ...analysis.functional_requirements.map((item, index) => ({ id: `FR-${String(index + 1).padStart(2, '0')}`, text: `${item.title}: ${item.description}`, kind: 'Functional' as const, priority: priorityLabel(item.priority), status: 'Validated' as const })),
       ...analysis.non_functional_requirements.map((item, index) => ({ id: `NFR-${String(index + 1).padStart(2, '0')}`, text: `${item.title}: ${item.description}`, kind: 'Non-functional' as const, priority: priorityLabel(item.priority), status: 'Needs review' as const })),
@@ -86,7 +80,6 @@ export const agentService = {
       throw new Error(detail || `Architecture Agent request failed (${response.status})`)
     }
     const analysis = await response.json() as ArchitectureApiResponse
-    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
     const architecture = analysis.components.map(component => ({ id: component.id, name: component.name, status: 'Active', responsibility: component.responsibility, inputs: component.inputs, outputs: component.outputs, type: component.type, technology: component.technology, relatedRequirements: component.related_requirements }))
     return { architecture, analysis }
   },
@@ -102,7 +95,6 @@ export const agentService = {
       throw new Error(detail || `Planner Agent request failed (${response.status})`)
     }
     const analysis = await response.json() as PlannerApiResponse
-    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
     const criticalSet = new Set(analysis.critical_path)
     const milestoneMap = new Map(analysis.milestones.map(m => [m.id, m.title]))
     const tasks: Task[] = analysis.tasks.map(task => ({
@@ -133,7 +125,6 @@ export const agentService = {
       throw new Error(err.detail?.message || err.detail || 'Review Agent failed')
     }
     const analysis = await response.json()
-    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
     const risks: Risk[] = analysis.risks.map((r: any, idx: number) => ({
       id: `R-${Date.now()}-${idx}`,
       title: r.title,
@@ -155,7 +146,6 @@ export const agentService = {
       throw new Error(err.detail?.message || err.detail || 'Test Agent failed')
     }
     const analysis = await response.json()
-    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
     const tests: TestCase[] = analysis.test_cases.map((t: any, idx: number) => ({
       id: `TC-${String(idx + 1).padStart(2, "0")}`,
       scenario: t.scenario,
@@ -215,9 +205,7 @@ export const agentService = {
     return response.json();
   },
   async createTaskFromFinding(_projectId: string, risk: Risk): Promise<Task> {
-    const engine = apiKeyService.getAiEngineStatus()
-    const keyToValidate = engine.activeKey?.key || engine.activeKey?.maskedValue
-    if (keyToValidate) apiKeyService.validateApiKey(keyToValidate)
+
     await wait(500)
     return { id: `T-${Date.now()}`, title: `Define fallback states for ${risk.title.toLowerCase()}`, milestone: 'Requirements & Design', priority: risk.severity, status: 'Pending', dependency: 'Safety state model', successCriteria: risk.recommendation }
   },

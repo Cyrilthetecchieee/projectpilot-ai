@@ -10,7 +10,6 @@ import {
   Eye,
   EyeOff,
   Hexagon,
-  Key,
   LockKeyhole,
   LogOut,
   Moon,
@@ -394,7 +393,7 @@ export function AccountNavbar({
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const projects = projectService.getProjects()
-  const activeProjectId = projects[0]?.id || 'smart-helmet'
+  const activeProjectId = Object.values(projects).find((p: any) => p.id === 'smart-helmet')?.id || Object.values(projects)[0]?.id || 'smart-helmet'
   const activeProject = projectService.getProject(activeProjectId)
 
   return (
@@ -444,7 +443,6 @@ export function ProfileMenu({ user, onLogout }: { user: MockUser; onLogout: () =
   const [confirm, setConfirm] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  const activeProjectId = projectService.getProjects()[0]?.id || 'smart-helmet'
   const theme = user.preferences?.theme || 'dark'
 
   const toggleTheme = async () => {
@@ -505,10 +503,7 @@ export function ProfileMenu({ user, onLogout }: { user: MockUser; onLogout: () =
               <UserRound size={15} />
               View Profile
             </Link>
-            <Link to={`/project/${activeProjectId}/api-keys`} onClick={() => setOpen(false)}>
-              <Key size={15} />
-              API Keys & Vault
-            </Link>
+
             <Link to="/settings" onClick={() => setOpen(false)}>
               <Settings size={15} />
               Account Settings
@@ -839,7 +834,6 @@ export function SettingsPage() {
   if (!user) return <Navigate to="/login" />
 
   const prefs = user.preferences
-  const activeProjectId = projectService.getProjects()[0]?.id || 'smart-helmet'
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -1072,15 +1066,7 @@ export function SettingsPage() {
                   your login password.
                 </p>
 
-                <div className="security-row">
-                  <div>
-                    <strong>API Keys & Integration Tokens</strong>
-                    <span>Generate scoped credentials for external agents and model inference</span>
-                  </div>
-                  <Link className="btn btn-secondary" to={`/project/${activeProjectId}/api-keys`}>
-                    <Key size={14} /> Open API Keys Vault
-                  </Link>
-                </div>
+
 
                 <div className="security-row">
                   <div>

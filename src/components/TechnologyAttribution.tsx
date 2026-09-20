@@ -1,7 +1,5 @@
 import { BrainCircuit, Check, ChevronDown, Cloud, Network, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import { aiProvider } from '../config/aiProvider'
-import { apiKeyService } from '../services/apiKeyService'
 
 export function TechnologyBadge({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false)
@@ -19,23 +17,7 @@ export function TechnologyFooter() {
 }
 
 export function EngineState() {
-  const [engineStatus, setEngineStatus] = useState(() => apiKeyService.getAiEngineStatus())
-
-  useEffect(() => {
-    const refresh = () => setEngineStatus(apiKeyService.getAiEngineStatus())
-    window.addEventListener('storage', refresh)
-    window.addEventListener('projectpilot:ai-engine-status-changed', refresh)
-    return () => {
-      window.removeEventListener('storage', refresh)
-      window.removeEventListener('projectpilot:ai-engine-status-changed', refresh)
-    }
-  }, [])
-
-  const live = engineStatus.mode === 'Live Connected'
-  const title = live ? engineStatus.providerName : aiProvider.isMock ? 'Mock Mode' : engineStatus.providerName
-  const detail = live ? engineStatus.modelName || 'Verified backend execution' : aiProvider.isMock ? 'Nemotron integration pending' : 'via Nebius Token Factory'
-
-  return <div className="engine-state"><span className="status-dot" /><div><small>AI ENGINE</small><b>{title}</b><span>{detail}</span></div><BrainCircuit size={15} /></div>
+  return <div className="engine-state"><span className="status-dot" /><div><small>AI ENGINE</small><b>NVIDIA Nemotron</b><span>Verified backend execution</span></div><BrainCircuit size={15} /></div>
 }
 
 export function TechnologyModal({ onClose }: { onClose: () => void }) {

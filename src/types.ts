@@ -18,59 +18,10 @@ export interface NextAction { title: string; description: string; priority: Prio
 export interface Project { id: string; name: string; idea: string; objective: string; type: string; technologies: string[]; constraints: string; timeline: string; stage: string; completion: number; requirements: Requirement[]; architecture: ArchitectureComponent[]; architectureConnections?: ArchitectureConnection[]; architectureDataFlow?: ArchitectureDataFlow[]; architectureDecisions?: ArchitectureDecision[]; architectureGaps?: ArchitectureGap[]; tasks: Task[]; risks: Risk[]; tests: TestCase[]; activity: AgentRun[]; nextAction: NextAction; requirementProblem?: string; requirementConstraints?: string[]; assumptions?: string[]; openQuestions?: string[] }
 export interface Project { id: string; name: string; idea: string; objective: string; type: string; technologies: string[]; constraints: string; timeline: string; stage: string; completion: number; requirements: Requirement[]; architecture: ArchitectureComponent[]; architectureConnections?: ArchitectureConnection[]; architectureDataFlow?: ArchitectureDataFlow[]; architectureDecisions?: ArchitectureDecision[]; architectureGaps?: ArchitectureGap[]; milestones?: MilestoneData[]; plannerSummary?: string; planningNotes?: string[]; criticalPath?: string[]; tasks: Task[]; risks: Risk[]; tests: TestCase[]; activity: AgentRun[]; nextAction: NextAction; requirementProblem?: string; requirementConstraints?: string[]; assumptions?: string[]; openQuestions?: string[] }
 
-export type CredentialType = 'PLATFORM_TOKEN' | 'PROVIDER_API_KEY'
-export type ApiKeyProvider = 'Google Gemini' | 'OpenAI' | 'NVIDIA' | 'Other'
-export type ApiKeyEnvironment = 'Development' | 'Staging' | 'Production'
-export type ApiKeyScope = 'run:agents' | 'read:project' | 'write:project' | 'manage:keys' | 'admin'
-export type ApiKeyStatus = 'Active' | 'Revoked'
 
-export interface CredentialMetadata {
-  id: string
-  name?: string
-  provider: ApiKeyProvider
-  credentialType: CredentialType
-  environment?: ApiKeyEnvironment
-  permissions: ApiKeyScope[]
-  scopes?: ApiKeyScope[]
-  maskedValue: string
-  maskedKey?: string
-  key?: string
-  secretReference: string
-  createdBy: string
-  createdAt: string
-  expiresAt: string | null
-  lastUsedAt: string | null
-  status: ApiKeyStatus
-}
 
-export type ApiKey = CredentialMetadata
 
-export interface GeneratePlatformTokenPayload {
-  name: string
-  provider: ApiKeyProvider
-  environment: ApiKeyEnvironment
-  permissions: ApiKeyScope[]
-  expiresInDays?: number | null
-}
 
-export interface AddProviderApiKeyPayload {
-  provider: ApiKeyProvider
-  secretKey: string
-  permissions: ApiKeyScope[]
-  name?: string
-  environment?: ApiKeyEnvironment
-  expiresInDays?: number | null
-}
-
-export interface CreateApiKeyPayload {
-  name: string
-  provider: ApiKeyProvider
-  environment: ApiKeyEnvironment
-  scopes: ApiKeyScope[]
-  secretKey?: string
-  expiresInDays?: number | null
-  credentialType?: CredentialType
-}
 
 
 

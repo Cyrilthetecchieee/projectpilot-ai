@@ -7,7 +7,6 @@ import type { Project, Risk } from './types'
 import { AgentSimulationState, EngineState, TechnologyBadge, TechnologyFooter } from './components/TechnologyAttribution'
 import { Avatar, LoginPage, ProfileMenu, ProfilePage, ProtectedRoute, SettingsPage, SignupPage } from './pages/AccountPages'
 import { useAuth } from './context/AuthContext'
-import { ApiKeysView } from './components/ApiKeysView'
 import { InitializationPage } from './pages/InitializationPage'
 import { EngineeringAgentsSection } from './components/EngineeringAgentsSection'
 import { WorkspaceSearchModal } from './components/WorkspaceSearchModal'
@@ -16,7 +15,7 @@ import { ExecutionPlanView } from './components/ExecutionPlanView'
 import './App.css'
 
 const icons = { Overview: LayoutDashboard, Requirements: FileText, Architecture: Network, 'Execution Plan': ClipboardCheck, 'Risks & Gaps': CircleAlert, Testing: TestTube2, 'Agent Activity': Activity, 'API Keys': Key }
-const routeNames: Record<string, string> = { Requirements: 'requirements', Architecture: 'architecture', 'Execution Plan': 'tasks', 'Risks & Gaps': 'risks', Testing: 'testing', 'Agent Activity': 'activity', 'API Keys': 'api-keys' }
+const routeNames: Record<string, string> = { Requirements: 'requirements', Architecture: 'architecture', 'Execution Plan': 'tasks', 'Risks & Gaps': 'risks', Testing: 'testing', 'Agent Activity': 'activity' }
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number }>
 function RenderIcon({ icon, size = 17 }: { icon: unknown; size?: number }) { const IconComponent = icon as Icon; return <IconComponent size={size} /> }
@@ -70,7 +69,7 @@ function ProjectShell({ children, project }: { children: React.ReactNode; projec
         <div className="side-head"><Logo /><button className="icon-btn close-menu" onClick={() => setOpen(false)}><X size={18} /></button></div>
         <div className="project-switcher"><span className="project-kicker">CURRENT PROJECT</span><strong>{project.name}</strong><span>{project.type}</span>{project.id === 'smart-helmet' && <Badge tone="lime">DEMO WORKSPACE</Badge>}</div>
         <nav className="side-nav">{Object.entries(icons).map(([label, I]) => { const route = label === 'Overview' ? '' : routeNames[label]; const href = `/project/${project.id}${route ? `/${route}` : ''}`; return <Link onClick={() => setOpen(false)} className={location.pathname === href || (label === 'Overview' && location.pathname === `/project/${project.id}`) ? 'active' : ''} to={href} key={label}><I size={17} />{label}</Link> })}</nav>
-        <div className="side-footer"><EngineState /><button className="side-settings" onClick={() => navigate(`/project/${project.id}/api-keys`)}><Key size={15} />API Keys & Access</button><button className="back-home" onClick={() => navigate('/')}><ArrowRight size={15} />Exit workspace</button></div>
+        <div className="side-footer"><EngineState /><button className="back-home" onClick={() => navigate('/')}><ArrowRight size={15} />Exit workspace</button></div>
       </aside>
       <div className="workspace">
         <header className="topbar">
@@ -104,7 +103,7 @@ function ProjectShell({ children, project }: { children: React.ReactNode; projec
 }
 function useProject() { const { id = 'smart-helmet' } = useParams(); const [project, setProject] = useState<Project | undefined>(() => projectService.getProject(id)); const refresh = () => setProject(projectService.getProject(id)); return { project, refresh } }
 function PageHeader({ eyebrow, title, text, action }: { eyebrow?: string; title: string; text?: string; action?: React.ReactNode }) { return <div className="page-header"><div>{eyebrow && <span className="eyebrow">{eyebrow}</span>}<h1>{title}</h1>{text && <p>{text}</p>}</div>{action}</div> }
-function ProjectRoute() { const { project, refresh } = useProject(); const { id = 'smart-helmet' } = useParams(); const { isAuthenticated } = useAuth(); if (!isAuthenticated && id !== 'smart-helmet') return <Navigate to="/login" replace state={{ from: `/project/${id}` }} />; if (!project) return <Navigate to="/new-project" />; return <ProjectShell project={project}><Routes><Route path="initializing" element={<InitializationPage project={project} />} /><Route index element={<Dashboard project={project} refresh={refresh} />} /><Route path="requirements" element={<Requirements project={project} refresh={refresh} />} /><Route path="architecture" element={<Architecture project={project} refresh={refresh} />} /><Route path="tasks" element={<ExecutionPlanView project={project} refresh={refresh} />} /><Route path="risks" element={<Risks project={project} refresh={refresh} />} /><Route path="testing" element={<Testing project={project} refresh={refresh} />} /><Route path="activity" element={<ActivityPage project={project} />} /><Route path="api-keys" element={<ApiKeysView project={project} />} /></Routes></ProjectShell> }
+function ProjectRoute() { const { project, refresh } = useProject(); const { id = 'smart-helmet' } = useParams(); const { isAuthenticated } = useAuth(); if (!isAuthenticated && id !== 'smart-helmet') return <Navigate to="/login" replace state={{ from: `/project/${id}` }} />; if (!project) return <Navigate to="/new-project" />; return <ProjectShell project={project}><Routes><Route path="initializing" element={<InitializationPage project={project} />} /><Route index element={<Dashboard project={project} refresh={refresh} />} /><Route path="requirements" element={<Requirements project={project} refresh={refresh} />} /><Route path="architecture" element={<Architecture project={project} refresh={refresh} />} /><Route path="tasks" element={<ExecutionPlanView project={project} refresh={refresh} />} /><Route path="risks" element={<Risks project={project} refresh={refresh} />} /><Route path="testing" element={<Testing project={project} refresh={refresh} />} /><Route path="activity" element={<ActivityPage project={project} />} /></Routes></ProjectShell> }
 function Dashboard({ project, refresh }: { project: Project; refresh: () => void }) {
   const navigate = useNavigate();
 
@@ -142,7 +141,6 @@ function Dashboard({ project, refresh }: { project: Project; refresh: () => void
           ['Tasks', `${completed} / ${project.tasks.length} Complete`, '4 In Progress', '/tasks', ClipboardCheck],
           ['Open Risks', `${project.risks.filter(r => !r.resolved).length}`, '1 Critical', '/risks', CircleAlert],
           ['Test Coverage', `${project.tests.length} Cases`, `${project.tests.filter(t => t.status === 'Pending').length} Pending`, '/testing', TestTube2],
-          ['API Keys', 'Credentials Active', 'Manage Scopes', '/api-keys', Key],
         ].map(([label, main, sub, path, I]) => (
           <button className="metric-card" key={String(label)} onClick={() => navigate(`/project/${project.id}${String(path)}`)}>
             <span className="metric-icon"><RenderIcon icon={I} /></span>
