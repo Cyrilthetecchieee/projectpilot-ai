@@ -255,7 +255,7 @@ export function ExecutionPlanView({ project, refresh }: ExecutionPlanViewProps) 
 
           <button
             type="button"
-            className="btn"
+            className="btn btn-generate-plan"
             onClick={handleGeneratePlan}
             disabled={running}
           >
@@ -546,6 +546,12 @@ export function ExecutionPlanView({ project, refresh }: ExecutionPlanViewProps) 
                                     <span className="task-id-tag">{task.id}</span>
                                     <span className="task-title-text">{task.title}</span>
 
+                                    {isCompleted && (
+                                      <span className="badge-task-completed">
+                                        <Check size={10} strokeWidth={2.5} /> COMPLETED
+                                      </span>
+                                    )}
+
                                     {task.isCriticalPath && (
                                       <span className="badge-critical-path">
                                         <Flame size={10} /> CRITICAL PATH
@@ -601,10 +607,11 @@ export function ExecutionPlanView({ project, refresh }: ExecutionPlanViewProps) 
 
                                   <button
                                     type="button"
-                                    className="btn-task-runner state-pending"
+                                    className="btn-task-runner btn-report-issue"
                                     onClick={() => setReportTask(task)}
                                     title="Report an issue with this task"
                                   >
+                                    <CircleAlert size={11} />
                                     <span>Report Issue</span>
                                   </button>
 

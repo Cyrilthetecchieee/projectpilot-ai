@@ -78,7 +78,7 @@ function AuthLayout({
             ProjectPilot <b>AI</b>
           </span>
         </Link>
-        <span className="badge badge-lime auth-kicker">AGENTIC ENGINEERING WORKSPACE</span>
+        <span className="badge badge-lime auth-kicker">ENGINEERING INTELLIGENCE</span>
         <h1>{title}</h1>
         <p>{description}</p>
         <div className="auth-flow">

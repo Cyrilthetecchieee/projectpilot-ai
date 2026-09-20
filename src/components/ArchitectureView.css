@@ -1,0 +1,552 @@
+/* ==========================================================================
+   Architecture View - Professional Agentic UI
+   ========================================================================== */
+
+.arch-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 1260px;
+  margin: 0 auto;
+}
+
+/* Page Header & Actions */
+.arch-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.arch-header-left h1 {
+  font-size: 32px;
+  letter-spacing: -0.02em;
+  margin: 6px 0 8px;
+  color: #ffffff;
+}
+
+.arch-header-left p {
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 620px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.arch-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Executive KPI Metric Ribbon */
+.arch-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.arch-kpi-card {
+  padding: 16px 18px;
+  background: #0c1822;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.arch-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: #3b5a4e;
+}
+
+.arch-kpi-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.arch-kpi-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #728c84;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.arch-kpi-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(24, 43, 35, 0.7);
+  border: 1px solid rgba(54, 80, 57, 0.5);
+  color: var(--lime);
+}
+
+.arch-kpi-val {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.arch-kpi-sub {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+/* Split Main Layout */
+.arch-main-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 18px;
+}
+
+/* Topology Panel */
+.arch-topology-panel {
+  background: #0a151f;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.arch-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.arch-panel-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 4px;
+}
+
+.arch-panel-header span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.arch-nodes-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.arch-node-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #0e1d27;
+  border: 1px solid #233e46;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.arch-node-item:hover {
+  background: #112330;
+  border-color: #385d68;
+  transform: translateX(3px);
+}
+
+.arch-node-item.selected {
+  background: #10272b;
+  border-color: var(--lime);
+  box-shadow: 0 0 20px rgba(167, 255, 82, 0.15);
+}
+
+.arch-node-idx {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lime);
+  background: rgba(167, 255, 82, 0.1);
+  border: 1px solid rgba(167, 255, 82, 0.25);
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+.arch-node-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.arch-node-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.arch-node-title-row strong {
+  font-size: 13px;
+  color: #ffffff;
+}
+
+.arch-node-tech {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.arch-node-desc {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.arch-node-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.arch-io-counter {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #7e9d94;
+  background: #09131a;
+  border: 1px solid var(--line);
+  padding: 3px 6px;
+  border-radius: 4px;
+}
+
+/* Connector Line */
+.arch-node-connector {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 14px;
+  color: #4a675e;
+}
+
+/* Deep Component Inspector Panel */
+.arch-inspector-panel {
+  background: #0a151f;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.arch-inspector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 16px;
+}
+
+.arch-inspector-header h2 {
+  font-size: 20px;
+  color: #ffffff;
+  margin: 0 0 6px;
+}
+
+.arch-inspector-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.arch-inspector-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.arch-inspector-section h4 {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: #69837a;
+  margin: 0;
+}
+
+.arch-inspector-section p {
+  font-size: 12.5px;
+  color: #c0d3cc;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.arch-io-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.arch-io-box {
+  background: #08131d;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.arch-io-box h5 {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: #728d84;
+  letter-spacing: 0.08em;
+  margin: 0 0 8px;
+}
+
+.arch-io-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.arch-io-chip {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.arch-io-chip.in {
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.arch-io-chip.out {
+  color: var(--lime);
+  background: rgba(167, 255, 82, 0.1);
+  border: 1px solid rgba(167, 255, 82, 0.25);
+}
+
+/* Sub-Panels Tabs Header */
+.arch-tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 12px;
+  margin-top: 10px;
+}
+
+.arch-tab-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--sans);
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.arch-tab-btn:hover {
+  background: #0f202b;
+  color: var(--text);
+}
+
+.arch-tab-btn.active {
+  background: #122524;
+  border-color: #2e5347;
+  color: var(--lime);
+  font-weight: 600;
+}
+
+.arch-tab-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Sub-panel Content Tables */
+.arch-tab-content-panel {
+  background: #0a151f;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 22px;
+}
+
+/* Connections Table */
+.arch-conn-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.arch-conn-header {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px 1.5fr;
+  gap: 14px;
+  padding: 10px 16px;
+  background: #08121a;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #69837a;
+  letter-spacing: 0.08em;
+}
+
+.arch-conn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 120px 1.5fr;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(41, 62, 70, 0.4);
+  font-size: 11.5px;
+}
+
+.arch-conn-row:last-child {
+  border-bottom: 0;
+}
+
+.arch-conn-row:hover {
+  background: #0e1d28;
+}
+
+.arch-protocol-pill {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #a5c3b9;
+  background: #112224;
+  border: 1px solid #23403a;
+  padding: 3px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* Data Flow Timeline */
+.arch-flow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.arch-flow-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 16px;
+  background: #0d1b24;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.arch-flow-step {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--lime);
+  background: rgba(167, 255, 82, 0.1);
+  border: 1px solid rgba(167, 255, 82, 0.25);
+  padding: 4px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.arch-flow-text {
+  font-size: 12px;
+  color: #c9ded6;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Architecture Gaps Grid */
+.arch-gaps-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.arch-gap-card {
+  padding: 16px 18px;
+  background: #0d1b24;
+  border: 1px solid #2e4945;
+  border-left: 3px solid #fbbf24;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.arch-gap-card.critical {
+  border-left-color: #f87171;
+}
+
+.arch-gap-card h4 {
+  font-size: 13px;
+  color: #ffffff;
+  margin: 0;
+}
+
+.arch-gap-card p {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.arch-gap-action {
+  font-size: 11px;
+  color: #a4ccc0;
+  background: rgba(16, 36, 32, 0.7);
+  border: 1px solid rgba(48, 80, 66, 0.5);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+@media (max-width: 960px) {
+  .arch-main-grid {
+    grid-template-columns: 1fr;
+  }
+  .arch-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .arch-gaps-grid {
+    grid-template-columns: 1fr;
+  }
+  .arch-conn-header,
+  .arch-conn-row {
+    grid-template-columns: 1fr 1fr;
+  }
+}

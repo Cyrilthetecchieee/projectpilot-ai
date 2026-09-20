@@ -1,0 +1,332 @@
+/* ==========================================================================
+   Testing & Verification View - Professional Agentic UI
+   ========================================================================== */
+
+.testing-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  max-width: 1260px;
+  margin: 0 auto;
+}
+
+/* Page Header & Actions */
+.test-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.test-header-left h1 {
+  font-size: 32px;
+  letter-spacing: -0.02em;
+  margin: 6px 0 8px;
+  color: #ffffff;
+}
+
+.test-header-left p {
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 620px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.test-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Executive KPI Metric Ribbon */
+.test-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.test-kpi-card {
+  padding: 16px 18px;
+  background: #0c1822;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.test-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: #3b5a4e;
+}
+
+.test-kpi-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.test-kpi-label {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: #728c84;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+}
+
+.test-kpi-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: rgba(24, 43, 35, 0.7);
+  border: 1px solid rgba(54, 80, 57, 0.5);
+  color: var(--lime);
+}
+
+.test-kpi-val {
+  font-size: 26px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+
+.test-kpi-sub {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+/* Toolbar */
+.test-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  background: #0a151f;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.test-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 280px;
+}
+
+.test-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #08131d;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  flex: 1;
+  max-width: 360px;
+}
+
+.test-search-box input {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--text);
+  font-size: 12px;
+  outline: 0;
+  width: 100%;
+}
+
+.test-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.test-pill-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-family: var(--sans);
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.test-pill-btn:hover {
+  background: #11202a;
+  color: var(--text);
+  border-color: #3b564c;
+}
+
+.test-pill-btn.active {
+  background: #142820;
+  border-color: #3c6b4b;
+  color: var(--lime);
+  font-weight: 600;
+}
+
+/* Table Container */
+.test-table-wrap {
+  background: #0a151f;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.test-table-header {
+  display: grid;
+  grid-template-columns: 85px 1.3fr 1fr 1.2fr 130px 105px;
+  gap: 14px;
+  align-items: center;
+  padding: 12px 20px;
+  background: #09121a;
+  border-bottom: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: #69837a;
+}
+
+.test-table-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.test-row-item {
+  display: grid;
+  grid-template-columns: 85px 1.3fr 1fr 1.2fr 130px 105px;
+  gap: 14px;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(41, 62, 70, 0.4);
+  font-size: 12px;
+  transition: background 0.15s ease;
+}
+
+.test-row-item:last-child {
+  border-bottom: 0;
+}
+
+.test-row-item:hover {
+  background: #0e1e29;
+}
+
+.test-id-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  padding: 3px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  text-align: center;
+}
+
+.test-scenario-col strong {
+  display: block;
+  color: #ffffff;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.test-detail-box {
+  background: #071118;
+  border: 1px solid rgba(34, 55, 62, 0.6);
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: #b5ccc4;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+/* Status Pill Dropdown */
+.test-status-pill {
+  padding: 5px 8px;
+  font-size: 11px;
+  font-family: var(--sans);
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  background: #0b1822;
+  cursor: pointer;
+  outline: 0;
+}
+
+.test-status-passed {
+  color: var(--lime);
+  background: rgba(167, 255, 82, 0.1);
+  border-color: rgba(167, 255, 82, 0.35);
+}
+
+.test-status-failed {
+  color: #f87171;
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.test-status-pending {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+/* Actions Cell */
+.test-actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.test-run-single-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 9px;
+  background: #11222b;
+  border: 1px solid #233e46;
+  color: #a4ccc0;
+  font-size: 11px;
+  font-family: var(--sans);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.test-run-single-btn:hover {
+  background: #153235;
+  border-color: var(--lime);
+  color: #ffffff;
+}
+
+@media (max-width: 1024px) {
+  .test-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 860px) {
+  .test-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .test-table-header {
+    display: none;
+  }
+  .test-row-item {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}

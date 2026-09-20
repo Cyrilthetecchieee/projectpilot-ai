@@ -225,7 +225,6 @@ export function EngineeringAgentsSection() {
     <section className="section engineering-agents-section" id="agents">
       {/* Section Header */}
       <div className="section-intro">
-        <span className="eyebrow">THE ENGINEERING TEAM</span>
         <h2>One workspace. Multiple engineering agents.</h2>
         <p>
           Specialized agents work together across the project lifecycle, leaving decisions and
@@ -239,9 +238,6 @@ export function EngineeringAgentsSection() {
           <span className="pipeline-track-label">
             <Sparkles size={13} style={{ color: 'var(--lime)' }} />
             COLLABORATIVE AGENT LIFECYCLE PIPELINE
-          </span>
-          <span className="pipeline-track-caption">
-            Click any agent card or stage to view its on-screen briefing
           </span>
         </div>
 

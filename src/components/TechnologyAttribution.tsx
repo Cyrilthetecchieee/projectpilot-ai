@@ -15,7 +15,13 @@ export function TechnologyBadge({ compact = false }: { compact?: boolean }) {
 }
 
 export function TechnologyFooter() {
-  return <div className="technology-footer"><strong>ProjectPilot AI</strong><span>Agentic Engineering Workspace</span><small>Powered by NVIDIA Nemotron</small><small>Built with Nebius Token Factory</small></div>
+  return (
+    <div className="technology-footer">
+      <strong>ProjectPilot AI</strong>
+      <span>Autonomous Engineering Architecture & Execution Platform</span>
+      <small>&copy; {new Date().getFullYear()} ProjectPilot AI. All rights reserved.</small>
+    </div>
+  )
 }
 
 export function EngineState() {
@@ -40,7 +46,7 @@ export function EngineState() {
 
 export function TechnologyModal({ onClose }: { onClose: () => void }) {
   useEffect(() => { const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose(); document.addEventListener('keydown', close); return () => document.removeEventListener('keydown', close) }, [onClose])
-  return <div className="modal-backdrop" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><div className="technology-modal" role="dialog" aria-modal="true" aria-labelledby="technology-title"><button className="modal-close" onClick={onClose} aria-label="Close technology stack"><X size={17} /></button><span className="eyebrow">THE INTELLIGENCE BEHIND PROJECTPILOT</span><h2 id="technology-title">Technology Stack</h2><p>ProjectPilot uses NVIDIA Nemotron models as its AI reasoning layer, accessed through Nebius Token Factory.</p><div className="architecture-stack"><span><Network size={15} />Engineering Workspace</span><ChevronDown size={15} /><span><BrainCircuit size={15} />ProjectPilot Agent Orchestrator</span><ChevronDown size={15} /><span><Cloud size={15} />Nebius Token Factory</span><ChevronDown size={15} /><span><BrainCircuit size={15} />NVIDIA Nemotron</span></div><div className="modal-agents"><small>SPECIALIZED AGENTS</small><div>{['Requirement Agent', 'Architecture Agent', 'Planner Agent', 'Reviewer Agent', 'Test Agent'].map(agent => <span key={agent}><Check size={12} />{agent}</span>)}</div></div><p className="modal-footnote">Learn more about the technology powering ProjectPilot.</p></div></div>
+  return <div className="modal-backdrop" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}><div className="technology-modal" role="dialog" aria-modal="true" aria-labelledby="technology-title"><button className="modal-close" onClick={onClose} aria-label="Close technology stack"><X size={17} /></button><h2 id="technology-title">Technology Stack</h2><p>ProjectPilot uses NVIDIA Nemotron models as its AI reasoning layer, accessed through Nebius Token Factory.</p><div className="architecture-stack"><span><Network size={15} />Engineering Workspace</span><ChevronDown size={15} /><span><BrainCircuit size={15} />ProjectPilot Agent Orchestrator</span><ChevronDown size={15} /><span><Cloud size={15} />Nebius Token Factory</span><ChevronDown size={15} /><span><BrainCircuit size={15} />NVIDIA Nemotron</span></div><div className="modal-agents"><small>SPECIALIZED AGENTS</small><div>{['Requirement Agent', 'Architecture Agent', 'Planner Agent', 'Reviewer Agent', 'Test Agent'].map(agent => <span key={agent}><Check size={12} />{agent}</span>)}</div></div><p className="modal-footnote">Learn more about the technology powering ProjectPilot.</p></div></div>
 }
 
 export function AgentSimulationState({ agent = 'Agent' }: { agent?: string }) {
