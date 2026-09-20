@@ -10,13 +10,11 @@ import {
   Key,
   Network,
   Play,
-  RefreshCw,
   ShieldCheck,
   Sparkles,
   TestTube2,
 } from 'lucide-react'
 import type { Project } from '../types'
-import { agentService } from '../services/agentService'
 import { TaskExecutionModal } from './TaskExecutionModal'
 import './OverviewView.css'
 
@@ -28,8 +26,6 @@ interface OverviewViewProps {
 export function OverviewView({ project, refresh }: OverviewViewProps) {
   const navigate = useNavigate()
   const [taskModalOpen, setTaskModalOpen] = useState(false)
-  const [isAuditing, setIsAuditing] = useState(false)
-
   // Calculations
   const completedTasks = project.tasks.filter(t => t.status === 'Completed').length
   const totalTasks = project.tasks.length
@@ -57,19 +53,6 @@ export function OverviewView({ project, refresh }: OverviewViewProps) {
   const isNextTaskInProgress = matchedTask?.status === 'In Progress'
   const isNextTaskCompleted = matchedTask?.status === 'Completed'
 
-  const handleRunAudit = async () => {
-    setIsAuditing(true)
-    try {
-      await agentService.reviewProject(project)
-      refresh()
-      navigate(`/project/${project.id}/risks`)
-    } catch {
-      // ignore
-    } finally {
-      setIsAuditing(false)
-    }
-  }
-
   return (
     <div className="overview-view">
       {/* 1. Header & Quick Actions */}
@@ -92,15 +75,6 @@ export function OverviewView({ project, refresh }: OverviewViewProps) {
         </div>
 
         <div className="header-right-actions">
-          <button
-            type="button"
-            className="btn-audit"
-            onClick={handleRunAudit}
-            disabled={isAuditing}
-          >
-            {isAuditing ? <RefreshCw size={14} className="spin-slow" /> : <Sparkles size={14} />}
-            {isAuditing ? 'Auditing Project...' : 'Run AI Project Review'}
-          </button>
           <button
             type="button"
             className="btn-primary-plan"

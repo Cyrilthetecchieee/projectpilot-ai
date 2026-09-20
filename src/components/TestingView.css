@@ -49,17 +49,20 @@
 
 .test-kpi-card {
   padding: 16px 18px;
-  background: #0c1822;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(14, 25, 33, 0.85) 0%, rgba(9, 17, 23, 0.95) 100%);
+  border: 1px solid rgba(44, 73, 67, 0.45);
+  border-radius: 8px;
   position: relative;
   overflow: hidden;
-  transition: transform 0.18s ease, border-color 0.18s ease;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
 }
 
 .test-kpi-card:hover {
   transform: translateY(-2px);
-  border-color: #3b5a4e;
+  border-color: rgba(90, 140, 125, 0.65);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .test-kpi-top {
@@ -109,9 +112,11 @@
   gap: 16px;
   flex-wrap: wrap;
   padding: 14px 18px;
-  background: #0a151f;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(14, 25, 33, 0.85) 0%, rgba(9, 17, 23, 0.95) 100%);
+  border: 1px solid rgba(44, 73, 67, 0.45);
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .test-toolbar-left {
@@ -127,8 +132,8 @@
   align-items: center;
   gap: 8px;
   padding: 8px 12px;
-  background: #08131d;
-  border: 1px solid var(--line);
+  background: rgba(8, 17, 23, 0.6);
+  border: 1px solid rgba(44, 73, 67, 0.4);
   border-radius: 6px;
   flex: 1;
   max-width: 360px;
@@ -178,9 +183,11 @@
 
 /* Table Container */
 .test-table-wrap {
-  background: #0a151f;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(14, 25, 33, 0.85) 0%, rgba(9, 17, 23, 0.95) 100%);
+  border: 1px solid rgba(44, 73, 67, 0.45);
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   overflow: hidden;
 }
 
@@ -243,8 +250,8 @@
 }
 
 .test-detail-box {
-  background: #071118;
-  border: 1px solid rgba(34, 55, 62, 0.6);
+  background: rgba(8, 17, 23, 0.6);
+  border: 1px solid rgba(44, 73, 67, 0.4);
   padding: 8px 10px;
   border-radius: 6px;
   color: #b5ccc4;

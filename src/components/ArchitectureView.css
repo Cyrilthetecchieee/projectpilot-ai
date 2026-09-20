@@ -49,17 +49,20 @@
 
 .arch-kpi-card {
   padding: 16px 18px;
-  background: #0c1822;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background: linear-gradient(145deg, rgba(14, 25, 33, 0.85) 0%, rgba(9, 17, 23, 0.95) 100%);
+  border: 1px solid rgba(44, 73, 67, 0.45);
+  border-radius: 8px;
   position: relative;
   overflow: hidden;
-  transition: transform 0.18s ease, border-color 0.18s ease;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
 }
 
 .arch-kpi-card:hover {
   transform: translateY(-2px);
-  border-color: #3b5a4e;
+  border-color: rgba(90, 140, 125, 0.65);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .arch-kpi-top {
@@ -110,10 +113,12 @@
 
 /* Topology Panel */
 .arch-topology-panel {
-  background: #0a151f;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(14, 25, 33, 0.85) 0%, rgba(9, 17, 23, 0.95) 100%);
+  border: 1px solid rgba(44, 73, 67, 0.45);
+  border-radius: 8px;
   padding: 22px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
 }
@@ -149,16 +154,16 @@
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  background: #0e1d27;
-  border: 1px solid #233e46;
-  border-radius: 8px;
+  background: rgba(8, 17, 23, 0.6);
+  border: 1px solid rgba(44, 73, 67, 0.4);
+  border-radius: 6px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  transition: all 0.2s ease;
 }
 
 .arch-node-item:hover {
-  background: #112330;
-  border-color: #385d68;
+  background: rgba(14, 27, 36, 0.8);
+  border-color: rgba(90, 140, 125, 0.5);
   transform: translateX(3px);
 }
 
@@ -248,10 +253,12 @@
 
 /* Deep Component Inspector Panel */
 .arch-inspector-panel {
-  background: #0a151f;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(14, 25, 33, 0.85) 0%, rgba(9, 17, 23, 0.95) 100%);
+  border: 1px solid rgba(44, 73, 67, 0.45);
+  border-radius: 8px;
   padding: 24px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -307,9 +314,9 @@
 }
 
 .arch-io-box {
-  background: #08131d;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  background: rgba(8, 17, 23, 0.6);
+  border: 1px solid rgba(44, 73, 67, 0.4);
+  border-radius: 6px;
   padding: 12px;
 }
 
@@ -397,10 +404,12 @@
 
 /* Sub-panel Content Tables */
 .arch-tab-content-panel {
-  background: #0a151f;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: linear-gradient(145deg, rgba(14, 25, 33, 0.85) 0%, rgba(9, 17, 23, 0.95) 100%);
+  border: 1px solid rgba(44, 73, 67, 0.45);
+  border-radius: 8px;
   padding: 22px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 /* Connections Table */
@@ -466,9 +475,9 @@
   align-items: flex-start;
   gap: 14px;
   padding: 14px 16px;
-  background: #0d1b24;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  background: rgba(8, 17, 23, 0.6);
+  border: 1px solid rgba(44, 73, 67, 0.4);
+  border-radius: 6px;
 }
 
 .arch-flow-step {
@@ -499,13 +508,22 @@
 
 .arch-gap-card {
   padding: 16px 18px;
-  background: #0d1b24;
-  border: 1px solid #2e4945;
+  background: linear-gradient(145deg, rgba(14, 25, 33, 0.85) 0%, rgba(9, 17, 23, 0.95) 100%);
+  border: 1px solid rgba(44, 73, 67, 0.45);
   border-left: 3px solid #fbbf24;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  transition: all 0.2s ease;
+}
+
+.arch-gap-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(90, 140, 125, 0.65);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 .arch-gap-card.critical {

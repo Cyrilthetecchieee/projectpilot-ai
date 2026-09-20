@@ -304,11 +304,13 @@
 }
 .project-switcher {
   padding: 16px 16px;
-  background: rgba(12, 24, 32, 0.5);
+  background: linear-gradient(145deg, rgba(14, 25, 33, 0.85) 0%, rgba(9, 17, 23, 0.95) 100%);
   margin: 14px 12px 6px;
   border-radius: 8px;
   border: 1px solid rgba(44, 73, 67, 0.45);
   cursor: pointer;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
   transition: all 0.2s ease;
   position: relative;
   display: flex;
@@ -316,10 +318,9 @@
   gap: 6px;
 }
 .project-switcher:hover {
-  background: rgba(18, 36, 46, 0.85);
-  border-color: rgba(90, 140, 125, 0.75);
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.35), 0 0 12px rgba(167, 255, 82, 0.08);
-  transform: translateY(-1px);
+  border-color: rgba(90, 140, 125, 0.65);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  transform: translateY(-2px);
 }
 .project-switcher-top {
   display: flex;

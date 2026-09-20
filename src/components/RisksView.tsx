@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import { useState, useMemo } from 'react'
 import {
   AlertOctagon,
   AlertTriangle,
@@ -14,7 +14,7 @@ import {
   X,
   Zap,
 } from 'lucide-react'
-import type { Priority, Project, Risk } from '../types'
+import type { Project, Risk } from '../types'
 import { projectService } from '../services/projectService'
 import { agentService } from '../services/agentService'
 import './RisksView.css'
@@ -27,8 +27,6 @@ interface RisksViewProps {
 type SeverityFilter = 'All' | 'Critical' | 'High' | 'Medium' | 'Resolved' | 'Active'
 
 export function RisksView({ project, refresh }: RisksViewProps) {
-  const [running, setRunning] = useState(false)
-  const [error, setError] = useState('')
   const [toast, setToast] = useState('')
 
   // Search & Filter
@@ -38,20 +36,6 @@ export function RisksView({ project, refresh }: RisksViewProps) {
 
   // Creating task state
   const [creatingTaskId, setCreatingTaskId] = useState<string | null>(null)
-
-  // Report Risk Modal
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false)
-  const [newRisk, setNewRisk] = useState<{
-    title: string
-    severity: Priority
-    detail: string
-    recommendation: string
-  }>({
-    title: '',
-    severity: 'High',
-    detail: '',
-    recommendation: '',
-  })
 
   const showToast = (message: string) => {
     setToast(message)
@@ -107,44 +91,6 @@ export function RisksView({ project, refresh }: RisksViewProps) {
       })
   }, [project.risks, searchQuery, severityFilter, sortBy])
 
-  // Run Continuous Review (AI Agent)
-  const handleReviewProject = async () => {
-    setRunning(true)
-    setError('')
-    try {
-      const result = await agentService.reviewProject(project)
-      const current = projectService.getProject(project.id)!
-      projectService.saveProject({
-        ...current,
-        risks: result.risks,
-        activity: [
-          {
-            id: `a-${Date.now()}`,
-            agent: 'Reviewer Agent',
-            action: 'Run Project Review',
-            status: 'Completed',
-            duration: `${(result.analysis.duration_ms / 1000).toFixed(1)}s`,
-            createdAt: 'Just now',
-            model: result.analysis.model,
-            provider: result.analysis.provider,
-            summary: `Detected ${result.risks.length} engineering risks and safety boundaries`,
-          },
-          ...current.activity,
-        ],
-      })
-      showToast('Continuous engineering review completed with Nemotron AI.')
-      refresh()
-    } catch (requestError) {
-      setError(
-        requestError instanceof Error
-          ? requestError.message
-          : 'Project review could not be completed.'
-      )
-    } finally {
-      setRunning(false)
-    }
-  }
-
   // Create Task in Execution Plan from Finding
   const handleCreateTaskFromFinding = async (risk: Risk) => {
     setCreatingTaskId(risk.id)
@@ -180,32 +126,6 @@ export function RisksView({ project, refresh }: RisksViewProps) {
     refresh()
   }
 
-  // Save New Risk
-  const handleSaveRisk = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newRisk.title.trim()) return
-
-    const riskItem: Risk = {
-      id: `RISK-${Date.now().toString().slice(-4)}`,
-      title: newRisk.title.trim(),
-      severity: newRisk.severity,
-      detail: newRisk.detail.trim() || 'Custom risk item identified by engineering team.',
-      recommendation: newRisk.recommendation.trim() || 'Implement mitigation and test scenarios.',
-      resolved: false,
-    }
-
-    projectService.addRisk(riskItem, project.id)
-    showToast(`Logged risk "${riskItem.title}"`)
-    setIsReportModalOpen(false)
-    setNewRisk({
-      title: '',
-      severity: 'High',
-      detail: '',
-      recommendation: '',
-    })
-    refresh()
-  }
-
   // Delete Risk
   const handleDeleteRisk = (id: string, title: string) => {
     if (window.confirm(`Are you sure you want to delete risk "${title}"?`)) {
@@ -226,34 +146,6 @@ export function RisksView({ project, refresh }: RisksViewProps) {
             Automated risk identification, unverified architectural assumptions, and mitigation
             pathways continuously monitored by the Reviewer Agent.
           </p>
-        </div>
-        <div className="risks-header-actions">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => setIsReportModalOpen(true)}
-          >
-            <Plus size={15} />
-            <span>Report Risk / Gap</span>
-          </button>
-          <button
-            type="button"
-            className="btn"
-            onClick={handleReviewProject}
-            disabled={running}
-          >
-            {running ? (
-              <>
-                <RefreshCw size={15} className="spin-icon" />
-                <span>Running Review...</span>
-              </>
-            ) : (
-              <>
-                <ShieldCheck size={15} />
-                <span>Run Project Review</span>
-              </>
-            )}
-          </button>
         </div>
       </div>
 
@@ -387,17 +279,6 @@ export function RisksView({ project, refresh }: RisksViewProps) {
         </div>
       </div>
 
-      {/* Error Alert */}
-      {error && (
-        <div className="agent-error panel">
-          <strong>Reviewer Agent could not complete the review.</strong>
-          <span>{error}</span>
-          <button className="btn btn-secondary" onClick={handleReviewProject}>
-            Retry Review
-          </button>
-        </div>
-      )}
-
       {/* Risks Grid */}
       <div className="risks-cards-grid">
         {filteredRisks.length === 0 ? (
@@ -497,91 +378,6 @@ export function RisksView({ project, refresh }: RisksViewProps) {
           ))
         )}
       </div>
-
-      {/* Report Risk Modal */}
-      {isReportModalOpen && (
-        <div
-          className="modal-backdrop"
-          role="presentation"
-          onMouseDown={e => e.target === e.currentTarget && setIsReportModalOpen(false)}
-        >
-          <div className="technology-modal" role="dialog" aria-modal="true" style={{ width: 'min(580px, 100%)' }}>
-            <button
-              className="modal-close"
-              onClick={() => setIsReportModalOpen(false)}
-              aria-label="Close dialog"
-            >
-              <X size={17} />
-            </button>
-            <span className="eyebrow">CONTINUOUS REVIEW</span>
-            <h2>Report Engineering Risk or Gap</h2>
-            <p>Log an identified failure mode, interface mismatch, or safety boundary.</p>
-
-            <form onSubmit={handleSaveRisk} className="req-modal-form">
-              <div className="req-form-row">
-                <label>
-                  Risk Title / Vulnerability
-                  <input
-                    required
-                    type="text"
-                    value={newRisk.title}
-                    onChange={e => setNewRisk({ ...newRisk, title: e.target.value })}
-                    placeholder="e.g. Battery thermal runaway during rapid telemetry burst"
-                  />
-                </label>
-
-                <label>
-                  Severity
-                  <select
-                    value={newRisk.severity}
-                    onChange={e => setNewRisk({ ...newRisk, severity: e.target.value as Priority })}
-                  >
-                    <option value="Critical">Critical</option>
-                    <option value="High">High</option>
-                    <option value="Medium">Medium</option>
-                    <option value="Low">Low</option>
-                  </select>
-                </label>
-              </div>
-
-              <label>
-                Problem Details & Technical Context
-                <textarea
-                  required
-                  rows={3}
-                  value={newRisk.detail}
-                  onChange={e => setNewRisk({ ...newRisk, detail: e.target.value })}
-                  placeholder="Explain why this poses an operational, safety, or architectural risk..."
-                />
-              </label>
-
-              <label>
-                Recommended Mitigation Action
-                <textarea
-                  required
-                  rows={3}
-                  value={newRisk.recommendation}
-                  onChange={e => setNewRisk({ ...newRisk, recommendation: e.target.value })}
-                  placeholder="Proposed fix, fallback mode, or verification protocol to eliminate the risk..."
-                />
-              </label>
-
-              <div className="req-modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsReportModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn">
-                  Log Risk
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* Toast Notification */}
       {toast && (

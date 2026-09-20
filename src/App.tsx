@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type FormEvent } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Activity, ArrowRight, ArrowUp, BrainCircuit, Check, ChevronDown, ChevronRight, CircleAlert, ClipboardCheck, Cloud, Cpu, FileText, Hexagon, Info, Key, LayoutDashboard, Menu, Network, Play, Plus, RefreshCw, Search, ShieldCheck, TestTube2, X } from 'lucide-react'
+import { Activity, ArrowRight, ArrowUp, BrainCircuit, Check, ChevronDown, ChevronRight, CircleAlert, ClipboardCheck, Cloud, Cpu, FileText, Hexagon, Info, Key, LayoutDashboard, Menu, Network, Play, Plus, Search, ShieldCheck, TestTube2, X } from 'lucide-react'
 import { projectService } from './services/projectService'
 import type { Project } from './types'
 import { EngineState, TechnologyBadge, TechnologyFooter } from './components/TechnologyAttribution'
@@ -282,9 +282,6 @@ function ProjectShell({ children, project }: { children: React.ReactNode; projec
               <Search size={15} />
               <span>Search workspace</span>
             </button>
-            <Button secondary icon={RefreshCw} onClick={() => navigate(`/project/${project.id}/risks`)}>
-              Run Project Review
-            </Button>
             <WorkspaceProfile />
           </div>
         </header>

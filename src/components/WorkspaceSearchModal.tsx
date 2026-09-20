@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   Network,
   Plus,
-  RefreshCw,
   Search,
   Settings,
   Sparkles,
@@ -149,18 +148,7 @@ export function WorkspaceSearchModal({ isOpen, onClose, project }: WorkspaceSear
         icon: Key,
       },
 
-      // Quick Workspace Actions
-      {
-        id: 'action-review',
-        title: 'Run Continuous Project Review',
-        subtitle: 'Trigger Reviewer Agent to scan for assumptions, contradictions, and gaps',
-        category: 'actions',
-        categoryLabel: 'Quick Action',
-        route: `/project/${project.id}/risks`,
-        badge: 'AGENT ACTION',
-        badgeTone: 'cyan',
-        icon: RefreshCw,
-      },
+
       {
         id: 'action-analyze-req',
         title: 'Analyze & Structure Requirements',
