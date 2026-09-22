@@ -1,0 +1,155 @@
+{
+  "projects": {
+    "test-no-arch": {
+      "id": "test-no-arch",
+      "name": "Test Project",
+      "idea": "A smart parking system to detect available parking slots",
+      "objective": "Help drivers find parking quickly",
+      "type": "IoT / Embedded",
+      "technologies": [
+        "ESP32",
+        "MQTT"
+      ],
+      "constraints": "Low cost",
+      "timeline": "2-3 Months",
+      "stage": "Idea"
+    },
+    "smart-helmet": {
+      "id": "smart-helmet",
+      "name": "Smart Helmet Safety System",
+      "idea": "A connected motorcycle helmet that enforces safety compliance by preventing ignition unless the helmet is worn and chin strap is fastened, with real-time wireless communication to the bike.",
+      "objective": "Prevent motorcycle accidents caused by improper helmet use by creating an automated safety interlock system with real-time feedback.",
+      "type": "IoT / Embedded",
+      "technologies": [
+        "ESP32",
+        "BLE",
+        "RTOS",
+        "Hall Effect Sensor",
+        "IMU"
+      ],
+      "constraints": "Must operate within motorcycle helmet constraints - very limited space, battery powered with minimum 6 month standby, must survive vibration and weather exposure, cost under $15 per unit.",
+      "timeline": "2-3 Months",
+      "stage": "Planning"
+    }
+  },
+  "requirements": {
+    "test-no-arch": {
+      "problem": "Drivers waste time and fuel searching for available parking spaces in urban areas. A low-cost, IoT-based smart parking system using ESP32 microcontrollers and MQTT communication is needed to detect slot occupancy in real-time and guide drivers to open spots quickly.",
+      "functional_requirements": [
+        {
+          "title": "Parking Slot Occupancy Detection",
+          "description": "Each parking slot shall be monitored by an ESP32-based sensor node capable of detecting vehicle presence (e.g., ultrasonic, IR, or magnetic sensor) and reporting status changes in real-time.",
+          "priority": "critical"
+        },
+        {
+          "title": "Real-Time Status Publishing via MQTT",
+          "description": "Sensor nodes shall publish slot occupancy status (occupied/free) to an MQTT broker immediately upon state change, with periodic heartbeat messages every 30 seconds to confirm node liveness.",
+          "priority": "critical"
+        },
+        {
+          "title": "Centralized Parking Map Aggregation",
+          "description": "A backend service shall subscribe to MQTT topics, aggregate real-time slot data, and maintain an up-to-date parking occupancy map accessible via API.",
+          "priority": "critical"
+        },
+        {
+          "title": "Driver-Facing Availability Interface",
+          "description": "Provide a simple interface (mobile web app or dashboard) showing real-time available slots with color-coded indicators (green=free, red=occupied) and optional navigation guidance.",
+          "priority": "high"
+        },
+        {
+          "title": "Sensor Node Configuration & OTA Updates",
+          "description": "Support remote configuration of sensor thresholds and MQTT topics, and enable over-the-air (OTA) firmware updates for ESP32 nodes via secure HTTPS.",
+          "priority": "medium"
+        },
+        {
+          "title": "System Health Monitoring & Alerts",
+          "description": "Monitor node connectivity, sensor health, and message latency; generate alerts for offline nodes or anomalous readings (e.g., stuck occupied state > 24h).",
+          "priority": "medium"
+        }
+      ],
+      "non_functional_requirements": [
+        {
+          "title": "Low Hardware Cost per Slot",
+          "description": "Total bill of materials (BOM) per sensor node (ESP32, sensor, enclosure, power) shall not exceed $15 USD at 100-unit volume to ensure scalability.",
+          "priority": "critical"
+        },
+        {
+          "title": "Battery Life for Wireless Nodes",
+          "description": "Battery-powered sensor nodes shall operate for \u226512 months on a single charge (e.g., 18650 Li-ion or 4x AA) using deep sleep and event-driven wakeups.",
+          "priority": "high"
+        },
+        {
+          "title": "Detection Accuracy & Latency",
+          "description": "Occupancy detection shall achieve \u226598% accuracy with \u22642 seconds latency from vehicle arrival/departure to MQTT status update under normal conditions.",
+          "priority": "high"
+        },
+        {
+          "title": "Network Resilience & Offline Buffering",
+          "description": "Sensor nodes shall buffer up to 50 status events locally during WiFi/MQTT outages and automatically reconnect and flush upon recovery.",
+          "priority": "high"
+        },
+        {
+          "title": "Scalability to 500+ Slots",
+          "description": "System architecture shall support \u2265500 concurrent sensor nodes per MQTT broker instance with <100ms end-to-end latency at peak load.",
+          "priority": "medium"
+        },
+        {
+          "title": "Environmental Robustness",
+          "description": "Outdoor sensor enclosures shall meet IP65 rating; operate reliably from -10\u00b0C to +50\u00b0C; resist vibration, dust, and condensation.",
+          "priority": "medium"
+        },
+        {
+          "title": "Security & Access Control",
+          "description": "MQTT communication shall use TLS 1.2+ with client certificate authentication; backend API shall enforce role-based access (admin, viewer).",
+          "priority": "high"
+        }
+      ],
+      "constraints": [
+        "Total hardware cost per slot \u2264 $15 (BOM at volume)",
+        "Project timeline: 2-3 months from idea to MVP deployment",
+        "Development team limited to 2-3 engineers (embedded + backend + frontend)",
+        "Must use ESP32 and MQTT as core technologies",
+        "No existing infrastructure assumed (power, networking, cloud) \u2014 must be self-contained or use low-cost cloud (e.g., MQTT on Raspberry Pi / free tier AWS IoT)",
+        "Regulatory: Unlicensed ISM band (2.4 GHz WiFi) compliance; no LoRaWAN/cellular due to cost"
+      ],
+      "assumptions": [
+        "Parking facility has WiFi coverage (2.4 GHz) across all slots or can deploy low-cost APs",
+        "Each slot can accommodate a small sensor node mounted on ceiling, wall, or ground",
+        "Power available for gateway/broker; sensor nodes may be battery or solar-assisted",
+        "Driver interface can be a progressive web app (PWA) \u2014 no native app store deployment needed",
+        "MQTT broker can be hosted on-premises (e.g., Raspberry Pi 4 + Mosquitto) or free cloud tier",
+        "Vehicle detection via ultrasonic (HC-SR04) or IR break-beam is sufficient; no license plate recognition required"
+      ],
+      "open_questions": [
+        "What is the exact parking layout (indoor/outdoor, multi-level, slot dimensions)? Affects sensor choice and mounting.",
+        "Is AC power available at each slot, or must all nodes be battery/solar powered?",
+        "What is the target deployment size for MVP (e.g., 10 slots, 50, 100)?",
+        "Who owns the WiFi infrastructure \u2014 can we deploy dedicated APs or must use existing guest network?",
+        "Are there local regulations on RF emissions, data privacy, or surveillance (cameras not used, but sensors may be regulated)?",
+        "What backend/cloud budget is available beyond 'low cost' \u2014 e.g., $0/month, $20/month?",
+        "Is integration with existing parking management or payment systems required?"
+      ],
+      "project_id": "test-no-arch",
+      "agent": "Requirement Agent",
+      "provider": "NVIDIA",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "duration_ms": 106534,
+      "summary": "6 functional and 7 non-functional requirements identified"
+    }
+  },
+  "architecture": {},
+  "plans": {},
+  "activity": {
+    "test-no-arch": [
+      {
+        "agent": "Requirement Agent",
+        "action": "Analyze Requirements",
+        "provider": "NVIDIA",
+        "model": "nvidia/nemotron-3-ultra-550b-a55b",
+        "status": "completed",
+        "duration_ms": 106534,
+        "summary": "6 functional and 7 non-functional requirements identified"
+      }
+    ]
+  }
+}

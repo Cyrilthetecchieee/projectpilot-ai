@@ -104,3 +104,48 @@ class ArchitectureResponse(ArchitectureAnalysis):
     provider: str = "NVIDIA"
     model: str
     duration_ms: int
+
+
+TaskStatus = Literal["todo", "in_progress", "completed"]
+
+
+class Milestone(BaseModel):
+    id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    description: str = Field(default="")
+    order: int = Field(ge=1)
+
+
+class PlannerTask(BaseModel):
+    id: str = Field(min_length=1)
+    milestone_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    description: str = Field(default="")
+    priority: Priority = "medium"
+    status: TaskStatus = "todo"
+    estimated_effort: str = Field(default="2-4 hours")
+    dependencies: list[str] = Field(default_factory=list)
+    related_requirements: list[str] = Field(default_factory=list)
+    related_components: list[str] = Field(default_factory=list)
+    success_criteria: list[str] = Field(default_factory=list)
+
+
+class ExecutionPlan(BaseModel):
+    summary: str = Field(min_length=1)
+    milestones: list[Milestone] = Field(min_length=1)
+    tasks: list[PlannerTask] = Field(min_length=1)
+    critical_path: list[str] = Field(default_factory=list)
+    planning_notes: list[str] = Field(default_factory=list)
+
+
+class PlannerRequest(BaseModel):
+    project: ProjectContext
+
+
+class ExecutionPlanResponse(ExecutionPlan):
+    project_id: str
+    agent: str = "Planner Agent"
+    provider: str = "NVIDIA"
+    model: str
+    duration_ms: int
+
