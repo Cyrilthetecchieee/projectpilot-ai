@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 import type { ArchitectureComponent, ArchitectureConnection, ArchitectureDataFlow, ArchitectureDecision, Milestone, Project, Requirement, Risk, Task, TestCase } from '../types'
-=======
-import type { ArchitectureComponent, ArchitectureConnection, ArchitectureDataFlow, ArchitectureDecision, MilestoneData, Project, Requirement, Risk, Task, TestCase } from '../types'
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
 import { apiKeyService } from './apiKeyService'
 
 const wait = (ms = 850) => new Promise(resolve => setTimeout(resolve, ms))
@@ -45,23 +41,19 @@ interface ArchitectureApiResponse {
 interface PlannerApiResponse {
   summary: string
   milestones: { id: string; title: string; description: string; order: number }[]
-<<<<<<< HEAD
   tasks: {
     id: string
     milestone_id: string
     title: string
     description: string
     priority: 'critical' | 'high' | 'medium' | 'low'
-    status: 'todo' | 'in_progress' | 'completed'
+    status: string
     estimated_effort: string
     dependencies: string[]
     related_requirements: string[]
     related_components: string[]
     success_criteria: string[]
   }[]
-=======
-  tasks: { id: string; milestone_id: string; title: string; description: string; priority: 'critical' | 'high' | 'medium' | 'low'; status: string; estimated_effort: string; dependencies: string[]; related_requirements: string[]; related_components: string[]; success_criteria: string[] }[]
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
   critical_path: string[]
   planning_notes: string[]
   provider: string
@@ -110,7 +102,6 @@ export const agentService = {
     const architecture = analysis.components.map(component => ({ id: component.id, name: component.name, status: 'Active', responsibility: component.responsibility, inputs: component.inputs, outputs: component.outputs, type: component.type, technology: component.technology, relatedRequirements: component.related_requirements }))
     return { architecture, analysis }
   },
-<<<<<<< HEAD
   async generatePlan(project: Project): Promise<{
     tasks: Task[]
     milestones: Milestone[]
@@ -136,22 +127,18 @@ export const agentService = {
       }),
     })
     if (!response.ok) {
-      const body = (await response.json().catch(() => null)) as { detail?: { message?: string } | string } | null
+      const body = (await response.json().catch(() => null)) as { detail?: { code?: string; message?: string } | string } | null
       const detail = typeof body?.detail === 'string' ? body.detail : body?.detail?.message
       throw new Error(detail || `Planner Agent request failed (${response.status})`)
     }
     const analysis = (await response.json()) as PlannerApiResponse
+    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
 
     const milestoneMap = new Map(analysis.milestones.map(m => [m.id, m.title]))
     const criticalPathSet = new Set(analysis.critical_path)
 
     const tasks: Task[] = analysis.tasks.map(t => {
       const milestoneTitle = milestoneMap.get(t.milestone_id) || t.milestone_id
-      const statusMap: Record<string, Task['status']> = {
-        todo: 'Pending',
-        in_progress: 'In Progress',
-        completed: 'Completed',
-      }
       return {
         id: t.id,
         title: t.title,
@@ -159,15 +146,20 @@ export const agentService = {
         milestone_id: t.milestone_id,
         description: t.description,
         priority: priorityLabel(t.priority),
-        status: statusMap[t.status] || 'Pending',
+        status: statusLabel(t.status),
         estimated_effort: t.estimated_effort,
+        estimatedEffort: t.estimated_effort,
         dependency: t.dependencies.join(', ') || undefined,
         dependencies: t.dependencies,
         related_requirements: t.related_requirements,
+        relatedRequirements: t.related_requirements,
         related_components: t.related_components,
+        relatedComponents: t.related_components,
         successCriteria: t.success_criteria.join('; ') || t.description || t.title,
         success_criteria: t.success_criteria,
+        successCriteriaList: t.success_criteria,
         is_critical_path: criticalPathSet.has(t.id),
+        isCriticalPath: criticalPathSet.has(t.id),
       }
     })
 
@@ -179,46 +171,23 @@ export const agentService = {
       analysis,
     }
   },
-  async reviewProject(project: Project): Promise<Risk[]> { return run(project.risks) },
-  async generateTests(project: Project): Promise<TestCase[]> { return run(project.tests) },
-=======
-  async generatePlan(project: Project): Promise<{ tasks: Task[]; milestones: MilestoneData[]; analysis: PlannerApiResponse }> {
-    const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(project.id)}/agents/plan`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project: { id: project.id, name: project.name, idea: project.idea, objective: project.objective, type: project.type, technologies: project.technologies, constraints: project.constraints, timeline: project.timeline, stage: project.stage } }),
-    })
-    if (!response.ok) {
-      const body = await response.json().catch(() => null) as { detail?: { code?: string; message?: string } | string } | null
-      const detail = typeof body?.detail === 'string' ? body.detail : body?.detail?.message
-      throw new Error(detail || `Planner Agent request failed (${response.status})`)
-    }
-    const analysis = await response.json() as PlannerApiResponse
-    apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
-    const criticalSet = new Set(analysis.critical_path)
-    const milestoneMap = new Map(analysis.milestones.map(m => [m.id, m.title]))
-    const tasks: Task[] = analysis.tasks.map(task => ({
-      id: task.id,
-      title: task.title,
-      milestone: milestoneMap.get(task.milestone_id) || task.milestone_id,
-      priority: priorityLabel(task.priority),
-      status: statusLabel(task.status),
-      successCriteria: task.success_criteria.join('; ') || task.description,
-      estimatedEffort: task.estimated_effort,
-      dependencies: task.dependencies,
-      relatedRequirements: task.related_requirements,
-      relatedComponents: task.related_components,
-      successCriteriaList: task.success_criteria,
-      isCriticalPath: criticalSet.has(task.id),
-    }))
-    const milestones: MilestoneData[] = analysis.milestones.map(m => ({ id: m.id, title: m.title, description: m.description, order: m.order }))
-    return { tasks, milestones, analysis }
-  },
   async reviewProject(project: Project): Promise<{ risks: Risk[]; analysis: any }> {
     const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(project.id)}/agents/review`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project: { id: project.id, name: project.name, idea: project.idea, objective: project.objective, type: project.type, technologies: project.technologies, constraints: project.constraints, timeline: project.timeline, stage: project.stage } }),
+      body: JSON.stringify({
+        project: {
+          id: project.id,
+          name: project.name,
+          idea: project.idea,
+          objective: project.objective,
+          type: project.type,
+          technologies: project.technologies,
+          constraints: project.constraints,
+          timeline: project.timeline,
+          stage: project.stage,
+        },
+      }),
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
@@ -232,7 +201,7 @@ export const agentService = {
       severity: r.severity,
       detail: r.detail,
       recommendation: r.recommendation,
-      resolved: false
+      resolved: false,
     }))
     return { risks, analysis }
   },
@@ -240,7 +209,19 @@ export const agentService = {
     const response = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(project.id)}/agents/tests`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ project: { id: project.id, name: project.name, idea: project.idea, objective: project.objective, type: project.type, technologies: project.technologies, constraints: project.constraints, timeline: project.timeline, stage: project.stage } }),
+      body: JSON.stringify({
+        project: {
+          id: project.id,
+          name: project.name,
+          idea: project.idea,
+          objective: project.objective,
+          type: project.type,
+          technologies: project.technologies,
+          constraints: project.constraints,
+          timeline: project.timeline,
+          stage: project.stage,
+        },
+      }),
     })
     if (!response.ok) {
       const err = await response.json().catch(() => ({}))
@@ -249,7 +230,7 @@ export const agentService = {
     const analysis = await response.json()
     apiKeyService.recordLiveAiExecution(analysis.provider, analysis.model)
     const tests: TestCase[] = analysis.test_cases.map((t: any, idx: number) => ({
-      id: `TC-${String(idx + 1).padStart(2, "0")}`,
+      id: `TC-${String(idx + 1).padStart(2, '0')}`,
       scenario: t.scenario,
       precondition: t.precondition,
       expected: t.expected_result,
@@ -257,7 +238,6 @@ export const agentService = {
     }))
     return { tests, analysis }
   },
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
   async getNextAction(project: Project) { return run(project.nextAction) },
   
   

@@ -78,7 +78,7 @@
           "description": "Battery-powered sensor nodes shall operate for \u226512 months on a single charge (e.g., 18650 Li-ion or 4x AA) using deep sleep and event-driven wakeups.",
           "priority": "high"
         },
-        {
+``        {
           "title": "Detection Accuracy & Latency",
           "description": "Occupancy detection shall achieve \u226598% accuracy with \u22642 seconds latency from vehicle arrival/departure to MQTT status update under normal conditions.",
           "priority": "high"

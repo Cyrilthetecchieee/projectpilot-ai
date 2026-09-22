@@ -1,12 +1,9 @@
-<<<<<<< HEAD
 import json
+import os
+from datetime import UTC, datetime
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
-=======
-import os
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
 from fastapi.middleware.cors import CORSMiddleware
 from openai import APIStatusError, AuthenticationError, NotFoundError, RateLimitError
 
@@ -19,13 +16,7 @@ from app.ai.nvidia_client import nvidia_client
 from app.schemas import (
     ArchitectureRequest,
     ArchitectureResponse,
-<<<<<<< HEAD
     ExecutionPlanResponse,
-    PlannerRequest,
-    ProjectContext,
-    RequirementsRequest,
-    RequirementsResponse,
-=======
     PlannerRequest,
     PlannerResponse,
     ProjectContext,
@@ -40,7 +31,6 @@ from app.schemas import (
     OrchestratorRun,
     OrchestratorState,
     DecisionRecord,
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
 )
 
 app = FastAPI(title="ProjectPilot AI Backend", version="0.1.0")
@@ -52,20 +42,18 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
-<<<<<<< HEAD
 STORAGE_FILE = Path(__file__).resolve().parent / "storage" / "projectpilot_store.json"
 STORAGE_FILE.parent.mkdir(parents=True, exist_ok=True)
-=======
-import json
-from pathlib import Path
-from datetime import UTC, datetime
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
+DB_FILE = Path(__file__).parent / "db.json"
 
 projects: dict[str, ProjectContext] = {}
 requirements_store: dict[str, RequirementsResponse] = {}
 architecture_store: dict[str, ArchitectureResponse] = {}
-<<<<<<< HEAD
-plan_store: dict[str, ExecutionPlanResponse] = {}
+plan_store: dict[str, PlannerResponse] = {}
+review_store: dict[str, ReviewResponse] = {}
+test_store: dict[str, TestResponse] = {}
+issues_store: dict[str, list[IssueRecord]] = {}
+orchestrator_store: dict[str, OrchestratorRun] = {}
 activity_store: dict[str, list[dict[str, object]]] = {}
 
 
@@ -95,23 +83,12 @@ def _load_storage() -> None:
         for k, v in raw.get("architecture", {}).items():
             architecture_store[k] = ArchitectureResponse.model_validate(v)
         for k, v in raw.get("plans", {}).items():
-            plan_store[k] = ExecutionPlanResponse.model_validate(v)
+            plan_store[k] = PlannerResponse.model_validate(v)
         for k, v in raw.get("activity", {}).items():
             activity_store[k] = v
     except Exception:
         pass
 
-
-_load_storage()
-=======
-plan_store: dict[str, PlannerResponse] = {}
-review_store: dict[str, ReviewResponse] = {}
-test_store: dict[str, TestResponse] = {}
-issues_store: dict[str, list[IssueRecord]] = {}
-orchestrator_store: dict[str, OrchestratorRun] = {}
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
-
-DB_FILE = Path(__file__).parent / "db.json"
 
 def _load_db() -> None:
     if not DB_FILE.exists():
@@ -143,8 +120,12 @@ def _load_db() -> None:
         if "orchestrator_store" in data:
             for k, v in data["orchestrator_store"].items():
                 orchestrator_store[k] = OrchestratorRun(**v)
+        if "activity_store" in data:
+            for k, v in data["activity_store"].items():
+                activity_store[k] = v
     except Exception as e:
         print(f"Failed to load db: {e}")
+
 
 def _save_db() -> None:
     try:
@@ -156,13 +137,17 @@ def _save_db() -> None:
             "issues_store": {k: [i.model_dump() for i in v] for k, v in issues_store.items()},
             "plan_store": {k: v.model_dump() for k, v in plan_store.items()},
             "projects": {k: v.model_dump() for k, v in projects.items()},
-            "orchestrator_store": {k: v.model_dump() for k, v in orchestrator_store.items()}
+            "orchestrator_store": {k: v.model_dump() for k, v in orchestrator_store.items()},
+            "activity_store": activity_store,
         }
         with open(DB_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f)
     except Exception as e:
         print(f"Failed to save db: {e}")
+    _save_storage()
 
+
+_load_storage()
 _load_db()
 
 def _now_iso() -> str:
@@ -278,13 +263,8 @@ def get_architecture(project_id: str) -> ArchitectureResponse:
     return result
 
 
-<<<<<<< HEAD
-@app.post("/api/projects/{project_id}/agents/plan", response_model=ExecutionPlanResponse)
-def generate_plan(project_id: str, request: PlannerRequest) -> ExecutionPlanResponse:
-=======
 @app.post("/api/projects/{project_id}/agents/plan", response_model=PlannerResponse)
 def generate_plan(project_id: str, request: PlannerRequest) -> PlannerResponse:
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
     if request.project.id != project_id:
         raise HTTPException(status_code=400, detail="Project payload ID does not match the URL")
     requirements = requirements_store.get(project_id)
@@ -319,21 +299,14 @@ def generate_plan(project_id: str, request: PlannerRequest) -> PlannerResponse:
     except (RuntimeError, ValueError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
-<<<<<<< HEAD
-    response = ExecutionPlanResponse(
-=======
     response = PlannerResponse(
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
         **analysis.model_dump(),
         project_id=project_id,
         model=nvidia_client.model,
         duration_ms=duration_ms,
     )
     plan_store[project_id] = response
-<<<<<<< HEAD
-=======
     _save_db()
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
     activity_store.setdefault(project_id, []).insert(0, {
         "agent": "Planner Agent",
         "action": "Generate Execution Plan",
@@ -341,24 +314,13 @@ def generate_plan(project_id: str, request: PlannerRequest) -> PlannerResponse:
         "model": nvidia_client.model,
         "status": "completed",
         "duration_ms": duration_ms,
-<<<<<<< HEAD
         "summary": response.summary,
-    })
-    _save_storage()
-    return response
-
-
-@app.get("/api/projects/{project_id}/plan", response_model=ExecutionPlanResponse)
-def get_plan(project_id: str) -> ExecutionPlanResponse:
-=======
-        "summary": f"{len(analysis.milestones)} milestones, {len(analysis.tasks)} tasks planned",
     })
     return response
 
 
 @app.get("/api/projects/{project_id}/plan", response_model=PlannerResponse)
 def get_plan(project_id: str) -> PlannerResponse:
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
     result = plan_store.get(project_id)
     if not result:
         raise HTTPException(status_code=404, detail="Execution plan has not been generated")

@@ -1,7 +1,6 @@
 from typing import Literal
 
 from pydantic import BaseModel, Field
-from pydantic import BaseModel, Field, model_validator
 
 Priority = Literal["critical", "high", "medium", "low"]
 
@@ -107,25 +106,18 @@ class ArchitectureResponse(ArchitectureAnalysis):
     duration_ms: int
 
 
-<<<<<<< HEAD
-TaskStatus = Literal["todo", "in_progress", "completed"]
-=======
 # ---------------------------------------------------------------------------
 # Planner Agent schemas
 # ---------------------------------------------------------------------------
 
-PlannerTaskStatus = Literal["todo", "in_progress", "completed"]
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
+TaskStatus = Literal["todo", "in_progress", "completed"]
+PlannerTaskStatus = TaskStatus
 
 
 class Milestone(BaseModel):
     id: str = Field(min_length=1)
     title: str = Field(min_length=1)
-<<<<<<< HEAD
     description: str = Field(default="")
-=======
-    description: str = ""
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
     order: int = Field(ge=1)
 
 
@@ -133,17 +125,10 @@ class PlannerTask(BaseModel):
     id: str = Field(min_length=1)
     milestone_id: str = Field(min_length=1)
     title: str = Field(min_length=1)
-<<<<<<< HEAD
     description: str = Field(default="")
     priority: Priority = "medium"
     status: TaskStatus = "todo"
     estimated_effort: str = Field(default="2-4 hours")
-=======
-    description: str = ""
-    priority: Priority
-    status: PlannerTaskStatus = "todo"
-    estimated_effort: str = ""
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
     dependencies: list[str] = Field(default_factory=list)
     related_requirements: list[str] = Field(default_factory=list)
     related_components: list[str] = Field(default_factory=list)
@@ -157,45 +142,21 @@ class ExecutionPlan(BaseModel):
     critical_path: list[str] = Field(default_factory=list)
     planning_notes: list[str] = Field(default_factory=list)
 
-<<<<<<< HEAD
-=======
-    @model_validator(mode="after")
-    def validate_references(self) -> "ExecutionPlan":
-        milestone_ids = {m.id for m in self.milestones}
-        task_ids = {t.id for t in self.tasks}
-        errors: list[str] = []
-        for task in self.tasks:
-            if task.milestone_id not in milestone_ids:
-                errors.append(f"Task {task.id} references unknown milestone {task.milestone_id}")
-            for dep in task.dependencies:
-                if dep not in task_ids:
-                    errors.append(f"Task {task.id} depends on unknown task {dep}")
-        for cp in self.critical_path:
-            if cp not in task_ids:
-                errors.append(f"Critical path references unknown task {cp}")
-        if errors:
-            raise ValueError("Invalid execution plan references: " + "; ".join(errors))
-        return self
-
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
 
 class PlannerRequest(BaseModel):
     project: ProjectContext
 
 
-<<<<<<< HEAD
-class ExecutionPlanResponse(ExecutionPlan):
-=======
 class PlannerResponse(ExecutionPlan):
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
     project_id: str
     agent: str = "Planner Agent"
     provider: str = "NVIDIA"
     model: str
     duration_ms: int
 
-<<<<<<< HEAD
-=======
+
+ExecutionPlanResponse = PlannerResponse
+
 
 class ReviewRisk(BaseModel):
     title: str = Field(min_length=1)
@@ -325,4 +286,3 @@ class OrchestratorRun(BaseModel):
     human_input_required: bool = False
     human_input_reason: str = ""
     error_message: str = ""
->>>>>>> 577a5319ea8e42f0946457bbb7e464c397841ef3
