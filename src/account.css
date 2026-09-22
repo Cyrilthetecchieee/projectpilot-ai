@@ -269,11 +269,16 @@
   height: 29px;
   min-width: 29px;
   min-height: 29px;
+  max-width: 29px;
+  max-height: 29px;
   flex-shrink: 0;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  display: grid;
-  place-items: center;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  line-height: 1 !important;
   background: #1d362e;
   border: 1px solid #527e4e;
   color: var(--lime);
@@ -282,6 +287,9 @@
   font-weight: 700;
   object-fit: cover;
   user-select: none;
+  box-sizing: border-box;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .user-avatar-large {
@@ -373,14 +381,24 @@
 }
 
 .profile-dropdown-head .user-avatar {
-  width: 38px;
-  height: 38px;
-  min-width: 38px;
-  min-height: 38px;
-  font-size: 13px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  max-width: 42px;
+  max-height: 42px;
+  font-size: 13.5px;
   font-weight: 800;
   border: 1.5px solid #5a8a54;
-  background: #1d3830;
+  background: #172e25;
+  box-shadow: 0 0 14px rgba(167, 255, 82, 0.12);
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .profile-dropdown-head div {
@@ -397,7 +415,9 @@
   text-overflow: ellipsis;
 }
 
-.profile-dropdown-head span {
+.profile-dropdown-head .profile-role,
+.profile-dropdown-head div > span,
+.profile-dropdown-head span:not(.user-avatar) {
   display: block;
   color: var(--lime);
   font-size: 10px;

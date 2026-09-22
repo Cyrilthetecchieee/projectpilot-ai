@@ -1,3 +1,4 @@
+import typing
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -38,7 +39,7 @@ class NVIDIAClient:
 
     def generate(
         self,
-        messages: list[dict[str, str]],
+        messages: list[dict[str, typing.Any]],
         response_format: dict[str, str] | None = None,
         enable_thinking: bool = False,
         max_tokens: int = 1800,

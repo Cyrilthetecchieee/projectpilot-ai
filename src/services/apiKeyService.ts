@@ -8,6 +8,13 @@ import { authService } from './authService'
 
 const STORAGE_KEY = 'projectpilot.credentials.metadata'
 const VAULT_SECRETS_KEY = 'projectpilot.vault.secrets'
+const AI_ENGINE_STATUS_KEY = 'projectpilot.aiEngine.status'
+
+interface VerifiedAiEngineStatus {
+  providerName: string
+  modelName: string
+  verifiedAt: string
+}
 
 const generateRandomString = (length = 32): string => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
@@ -34,7 +41,7 @@ export const maskSecret = (secret: string): string => {
     const end = secret.slice(-4)
     return `${prefix}_••••${end}`
   }
-  if (secret.startsWith('AIzaSy')) {
+  if (secret.startsWith('AIza')) {
     return `AIza...${secret.slice(-3)}`
   }
   if (secret.startsWith('sk-proj-')) {
@@ -43,7 +50,10 @@ export const maskSecret = (secret: string): string => {
   if (secret.startsWith('sk-')) {
     return `sk-...${secret.slice(-4)}`
   }
-  if (secret.length <= 10) return '••••••••'
+  if (secret.startsWith('nvapi-')) {
+    return `nvapi-...${secret.slice(-4)}`
+  }
+  if (secret.length <= 10) return `••••••••••${secret.slice(-3)}`
   return `${secret.slice(0, 4)}...${secret.slice(-3)}`
 }
 
@@ -146,6 +156,31 @@ const writeVaultSecret = (reference: string, secret: string) => {
   }
 }
 
+const readVerifiedAiEngineStatus = (): VerifiedAiEngineStatus | null => {
+  try {
+    const raw = localStorage.getItem(AI_ENGINE_STATUS_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as Partial<VerifiedAiEngineStatus>
+    if (!parsed.providerName || !parsed.modelName || !parsed.verifiedAt) return null
+    return {
+      providerName: parsed.providerName,
+      modelName: parsed.modelName,
+      verifiedAt: parsed.verifiedAt,
+    }
+  } catch {
+    return null
+  }
+}
+
+const writeVerifiedAiEngineStatus = (status: VerifiedAiEngineStatus) => {
+  try {
+    localStorage.setItem(AI_ENGINE_STATUS_KEY, JSON.stringify(status))
+    window.dispatchEvent(new CustomEvent('projectpilot:ai-engine-status-changed'))
+  } catch {
+    // Ignore storage errors; the agent result itself is still valid.
+  }
+}
+
 export const apiKeyService = {
   /**
    * RBAC Security Check: Verifies user session authorization
@@ -245,6 +280,9 @@ export const apiKeyService = {
     if (!rawSecret) {
       throw new Error('API Secret Key is required.')
     }
+    if (!payload.permissions || payload.permissions.length === 0) {
+      throw new Error('At least one permission is required.')
+    }
 
     const secretRef = `vault-ref-${Date.now()}-${generateRandomString(6)}`
     writeVaultSecret(secretRef, rawSecret)
@@ -256,12 +294,12 @@ export const apiKeyService = {
 
     const newCredential: CredentialMetadata = {
       id: `cred-${Date.now()}-${generateRandomString(6)}`,
-      name: payload.name.trim() || `${payload.provider} Provider Key`,
+      ...(payload.name?.trim() ? { name: payload.name.trim() } : {}),
       provider: payload.provider,
       credentialType: 'PROVIDER_API_KEY',
-      environment: payload.environment,
-      permissions: payload.permissions.length ? payload.permissions : ['read:project'],
-      scopes: payload.permissions.length ? payload.permissions : ['read:project'],
+      ...(payload.environment ? { environment: payload.environment } : {}),
+      permissions: payload.permissions,
+      scopes: payload.permissions,
       maskedValue: masked,
       maskedKey: masked,
       key: masked,
@@ -488,16 +526,18 @@ export const apiKeyService = {
         c.id === clean ||
         c.maskedValue === clean ||
         c.maskedKey === clean ||
-        c.name.toLowerCase() === clean.toLowerCase() ||
+        (c.name && c.name.toLowerCase() === clean.toLowerCase()) ||
+        c.provider.toLowerCase() === clean.toLowerCase() ||
         readVaultSecret(c.secretReference) === clean
     )
 
     if (match) {
+      const matchLabel = match.name || `${match.provider} Key`
       if (match.status === 'Revoked') {
-        return { valid: false, message: `Credential [${match.name}] has been revoked.` }
+        return { valid: false, message: `Credential [${matchLabel}] has been revoked.` }
       }
       if (match.expiresAt && new Date(match.expiresAt).getTime() < Date.now()) {
-        return { valid: false, message: `Credential [${match.name}] has expired.` }
+        return { valid: false, message: `Credential [${matchLabel}] has expired.` }
       }
 
       // Update last used
@@ -506,17 +546,18 @@ export const apiKeyService = {
       return {
         valid: true,
         credential: match,
-        message: `Connection verified with [${match.name}] (${match.provider} · ${match.credentialType === 'PLATFORM_TOKEN' ? 'Platform Token' : 'Provider Key'})`,
+        message: `Connection verified with [${matchLabel}] (${match.provider} · ${match.credentialType === 'PLATFORM_TOKEN' ? 'Platform Token' : 'Provider Key'})`,
       }
     }
 
     // Active credential fallback test
     const active = this.getActiveAiKey()
     if (active && (clean.startsWith('axr_') || clean.startsWith('AIza') || clean.startsWith('sk-') || clean.length >= 16)) {
+      const activeLabel = active.name || `${active.provider} Key`
       return {
         valid: true,
         credential: active,
-        message: `Live provider verification successful via [${active.name}] (${active.provider}).`,
+        message: `Live provider verification successful via [${activeLabel}] (${active.provider}).`,
       }
     }
 
@@ -540,6 +581,8 @@ export const apiKeyService = {
   getAiEngineStatus(): {
     mode: 'Live Connected' | 'Simulation Mode'
     providerName: string
+    modelName?: string
+    verifiedAt?: string
     activeKey?: CredentialMetadata
     activeCredential?: CredentialMetadata
     totalActiveKeys: number
@@ -547,11 +590,25 @@ export const apiKeyService = {
     const creds = this.getCredentialsSync()
     const activeKeys = creds.filter(k => k.status === 'Active')
     const primary = this.getActiveAiKey()
+    const verified = readVerifiedAiEngineStatus()
+
+    if (verified) {
+      return {
+        mode: 'Live Connected',
+        providerName: verified.providerName,
+        modelName: verified.modelName,
+        verifiedAt: verified.verifiedAt,
+        activeKey: primary,
+        activeCredential: primary,
+        totalActiveKeys: activeKeys.length,
+      }
+    }
 
     if (primary) {
       return {
         mode: 'Live Connected',
         providerName: primary.provider,
+        modelName: primary.provider,
         activeKey: primary,
         activeCredential: primary,
         totalActiveKeys: activeKeys.length,
@@ -561,9 +618,19 @@ export const apiKeyService = {
     return {
       mode: 'Simulation Mode',
       providerName: 'Google Gemini',
+      modelName: 'Simulation',
       activeKey: undefined,
       activeCredential: undefined,
       totalActiveKeys: activeKeys.length,
     }
+  },
+
+  recordLiveAiExecution(providerName: string, modelName: string) {
+    if (!providerName.trim() || !modelName.trim()) return
+    writeVerifiedAiEngineStatus({
+      providerName: providerName.trim(),
+      modelName: modelName.trim(),
+      verifiedAt: new Date().toISOString(),
+    })
   },
 }

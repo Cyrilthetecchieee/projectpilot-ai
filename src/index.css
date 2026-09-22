@@ -1,1 +1,1 @@
-html { background:#071019; } body { min-width:320px; } ::selection { background:#a7ff52; color:#08120d; } ::placeholder { color:#58707a; } :focus-visible { outline:2px solid #a7ff52; outline-offset:2px; }
+html { background:#071019; width:100%; overflow-x:hidden; } body { min-width:320px; width:100%; overflow-x:hidden; } ::selection { background:#a7ff52; color:#08120d; } ::placeholder { color:#58707a; } :focus-visible { outline:2px solid #a7ff52; outline-offset:2px; }
