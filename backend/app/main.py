@@ -12,6 +12,7 @@ from app.agents.planner_agent import planner_agent
 from app.agents.requirement_agent import requirement_agent
 from app.agents.reviewer_agent import reviewer_agent
 from app.agents.test_agent import test_agent
+from app.ai.nebius_client import nebius_client
 from app.ai.nvidia_client import nvidia_client
 from app.schemas import (
     ArchitectureRequest,
@@ -151,7 +152,8 @@ _load_storage()
 _load_db()
 
 def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
+    import datetime as _dt
+    return _dt.datetime.now(_dt.timezone.utc).isoformat()
 
 @app.get("/health")
 def health() -> dict[str, str]:
@@ -166,20 +168,21 @@ def analyze_requirements(project_id: str, request: RequirementsRequest) -> Requi
     try:
         analysis, duration_ms = requirement_agent.analyze(request.project)
     except AuthenticationError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA authentication failed") from error
+        raise HTTPException(status_code=502, detail="Nebius authentication failed") from error
     except RateLimitError as error:
-        raise HTTPException(status_code=429, detail="NVIDIA rate limit or quota issue") from error
+        raise HTTPException(status_code=429, detail="Nebius rate limit or quota issue") from error
     except NotFoundError as error:
-        raise HTTPException(status_code=502, detail="Configured Nemotron model is unavailable") from error
+        raise HTTPException(status_code=502, detail="Configured Nebius model is unavailable") from error
     except APIStatusError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA provider request failed") from error
+        raise HTTPException(status_code=502, detail="Nebius provider request failed") from error
     except (RuntimeError, ValueError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
     response = RequirementsResponse(
         **analysis.model_dump(),
         project_id=project_id,
-        model=nvidia_client.model,
+        provider="Nebius Token Factory",
+        model=requirement_agent.model,
         duration_ms=duration_ms,
         summary=(f"{len(analysis.functional_requirements)} functional and "
                  f"{len(analysis.non_functional_requirements)} non-functional requirements identified"),
@@ -189,8 +192,8 @@ def analyze_requirements(project_id: str, request: RequirementsRequest) -> Requi
     activity_store.setdefault(project_id, []).insert(0, {
         "agent": "Requirement Agent",
         "action": "Analyze Requirements",
-        "provider": "NVIDIA",
-        "model": nvidia_client.model,
+        "provider": "Nebius Token Factory",
+        "model": requirement_agent.model,
         "status": "completed",
         "duration_ms": duration_ms,
         "summary": response.summary,
@@ -224,20 +227,21 @@ def generate_architecture(project_id: str, request: ArchitectureRequest) -> Arch
     try:
         analysis, duration_ms = architecture_agent.analyze(request.project, requirements)
     except AuthenticationError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA authentication failed") from error
+        raise HTTPException(status_code=502, detail="Nebius authentication failed") from error
     except RateLimitError as error:
-        raise HTTPException(status_code=429, detail="NVIDIA rate limit or quota issue") from error
+        raise HTTPException(status_code=429, detail="Nebius rate limit or quota issue") from error
     except NotFoundError as error:
-        raise HTTPException(status_code=502, detail="Configured Nemotron model is unavailable") from error
+        raise HTTPException(status_code=502, detail="Configured Nebius model is unavailable") from error
     except APIStatusError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA provider request failed") from error
+        raise HTTPException(status_code=502, detail="Nebius provider request failed") from error
     except (RuntimeError, ValueError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
     response = ArchitectureResponse(
         **analysis.model_dump(),
         project_id=project_id,
-        model=nvidia_client.model,
+        provider="Nebius Token Factory",
+        model=architecture_agent.model,
         duration_ms=duration_ms,
     )
     architecture_store[project_id] = response
@@ -245,8 +249,8 @@ def generate_architecture(project_id: str, request: ArchitectureRequest) -> Arch
     activity_store.setdefault(project_id, []).insert(0, {
         "agent": "Architecture Agent",
         "action": "Generate Architecture",
-        "provider": "NVIDIA",
-        "model": nvidia_client.model,
+        "provider": "Nebius Token Factory",
+        "model": architecture_agent.model,
         "status": "completed",
         "duration_ms": duration_ms,
         "summary": response.summary,
@@ -289,20 +293,21 @@ def generate_plan(project_id: str, request: PlannerRequest) -> PlannerResponse:
     try:
         analysis, duration_ms = planner_agent.analyze(request.project, requirements, architecture)
     except AuthenticationError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA authentication failed") from error
+        raise HTTPException(status_code=502, detail="Nebius authentication failed") from error
     except RateLimitError as error:
-        raise HTTPException(status_code=429, detail="NVIDIA rate limit or quota issue") from error
+        raise HTTPException(status_code=429, detail="Nebius rate limit or quota issue") from error
     except NotFoundError as error:
-        raise HTTPException(status_code=502, detail="Configured Nemotron model is unavailable") from error
+        raise HTTPException(status_code=502, detail="Configured Nebius model is unavailable") from error
     except APIStatusError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA provider request failed") from error
+        raise HTTPException(status_code=502, detail="Nebius provider request failed") from error
     except (RuntimeError, ValueError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
     response = PlannerResponse(
         **analysis.model_dump(),
         project_id=project_id,
-        model=nvidia_client.model,
+        provider="Nebius Token Factory",
+        model=planner_agent.model,
         duration_ms=duration_ms,
     )
     plan_store[project_id] = response
@@ -310,12 +315,13 @@ def generate_plan(project_id: str, request: PlannerRequest) -> PlannerResponse:
     activity_store.setdefault(project_id, []).insert(0, {
         "agent": "Planner Agent",
         "action": "Generate Execution Plan",
-        "provider": "NVIDIA",
-        "model": nvidia_client.model,
+        "provider": "Nebius Token Factory",
+        "model": planner_agent.model,
         "status": "completed",
         "duration_ms": duration_ms,
         "summary": response.summary,
     })
+    _save_storage()
     return response
 
 
@@ -347,20 +353,21 @@ def generate_review(project_id: str, request: ReviewRequest) -> ReviewResponse:
     try:
         analysis, duration_ms = reviewer_agent.analyze(request.project, requirements, architecture)
     except AuthenticationError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA authentication failed") from error
+        raise HTTPException(status_code=502, detail="Nebius authentication failed") from error
     except RateLimitError as error:
-        raise HTTPException(status_code=429, detail="NVIDIA rate limit or quota issue") from error
+        raise HTTPException(status_code=429, detail="Nebius rate limit or quota issue") from error
     except NotFoundError as error:
-        raise HTTPException(status_code=502, detail="Configured Nemotron model is unavailable") from error
+        raise HTTPException(status_code=502, detail="Configured Nebius model is unavailable") from error
     except APIStatusError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA provider request failed") from error
+        raise HTTPException(status_code=502, detail="Nebius provider request failed") from error
     except (RuntimeError, ValueError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
     response = ReviewResponse(
         **analysis.model_dump(),
         project_id=project_id,
-        model=nvidia_client.model,
+        provider="Nebius Token Factory",
+        model=reviewer_agent.model,
         duration_ms=duration_ms,
     )
     review_store[project_id] = response
@@ -368,13 +375,14 @@ def generate_review(project_id: str, request: ReviewRequest) -> ReviewResponse:
     activity_store.setdefault(project_id, []).insert(0, {
         "agent": "Reviewer Agent",
         "action": "Run Project Review",
-        "provider": "NVIDIA",
-        "model": nvidia_client.model,
+        "provider": "Nebius Token Factory",
+        "model": reviewer_agent.model,
         "status": "completed",
         "duration_ms": duration_ms,
         "timestamp": _now_iso(),
         "summary": f"Detected {len(analysis.risks)} engineering risks/gaps",
     })
+    _save_storage()
     return response
 
 @app.get("/api/projects/{project_id}/review", response_model=ReviewResponse)
@@ -397,23 +405,26 @@ def generate_tests(project_id: str, request: TestRequest) -> TestResponse:
         raise HTTPException(status_code=409, detail={"code": "ARCHITECTURE_REQUIRED", "message": "Generate project architecture before generating tests."})
     
     projects[project_id] = request.project
+    plan = plan_store.get(project_id)
+    review = review_store.get(project_id)
     try:
-        analysis, duration_ms = test_agent.analyze(request.project, requirements, architecture)
+        analysis, duration_ms = test_agent.analyze(request.project, requirements, architecture, plan=plan, review=review)
     except AuthenticationError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA authentication failed") from error
+        raise HTTPException(status_code=502, detail="Nebius authentication failed") from error
     except RateLimitError as error:
-        raise HTTPException(status_code=429, detail="NVIDIA rate limit or quota issue") from error
+        raise HTTPException(status_code=429, detail="Nebius rate limit or quota issue") from error
     except NotFoundError as error:
-        raise HTTPException(status_code=502, detail="Configured Nemotron model is unavailable") from error
+        raise HTTPException(status_code=502, detail="Configured Nebius model is unavailable") from error
     except APIStatusError as error:
-        raise HTTPException(status_code=502, detail="NVIDIA provider request failed") from error
+        raise HTTPException(status_code=502, detail="Nebius provider request failed") from error
     except (RuntimeError, ValueError) as error:
         raise HTTPException(status_code=502, detail=str(error)) from error
 
     response = TestResponse(
         **analysis.model_dump(),
         project_id=project_id,
-        model=nvidia_client.model,
+        provider="Nebius Token Factory",
+        model=test_agent.model,
         duration_ms=duration_ms,
     )
     test_store[project_id] = response
@@ -421,12 +432,13 @@ def generate_tests(project_id: str, request: TestRequest) -> TestResponse:
     activity_store.setdefault(project_id, []).insert(0, {
         "agent": "Test Agent",
         "action": "Generate Verification Strategy",
-        "provider": "NVIDIA",
-        "model": nvidia_client.model,
+        "provider": "Nebius Token Factory",
+        "model": test_agent.model,
         "status": "completed",
         "duration_ms": duration_ms,
         "summary": f"{len(analysis.test_cases)} test cases generated",
     })
+    _save_storage()
     return response
 
 @app.get("/api/projects/{project_id}/tests", response_model=TestResponse)
@@ -551,12 +563,13 @@ async def report_issue(project_id: str, project_data: str = Form(...), task_id: 
     activity_store.setdefault(project_id, []).insert(0, {
         "agent": "Reviewer Agent",
         "action": "Analyze Execution Issue",
-        "provider": "NVIDIA",
-        "model": nvidia_client.model,
+        "provider": "Nebius Token Factory",
+        "model": reviewer_agent.model,
         "status": "completed",
         "duration_ms": duration_ms,
         "summary": analysis.issue_summary,
     })
+    _save_storage()
     
     return issue
 
@@ -716,18 +729,20 @@ async def orchestrator_loop(project_id: str):
                     run.progress_steps = ["Review completed successfully", "No blocking issues"]
                     
             elif agent == "Test Agent":
-                analysis, duration = test_agent.analyze(project, reqs, arch)
+                analysis, duration = test_agent.analyze(project, reqs, arch, plan=plan_store.get(project_id), review=review_store.get(project_id))
                 test_store[project_id] = analysis
                 run.progress_steps = ["Generated verification strategy"]
 
             dec.result = "Success"
             
             # Log real agent execution
+            agent_provider = "Nebius Token Factory" if agent in ("Requirement Agent", "Architecture Agent", "Planner Agent", "Reviewer Agent", "Test Agent") else "NVIDIA"
+            agent_model = nebius_client.model if agent in ("Requirement Agent", "Architecture Agent", "Planner Agent", "Reviewer Agent", "Test Agent") else nvidia_client.model
             activity_store.setdefault(project_id, []).insert(0, {
                 "agent": agent,
                 "action": f"Autonomous {action}",
-                "provider": "NVIDIA",
-                "model": nvidia_client.model,
+                "provider": agent_provider,
+                "model": agent_model,
                 "status": "completed",
                 "duration_ms": duration,
                 "summary": "Completed successfully via Orchestrator",
@@ -740,11 +755,13 @@ async def orchestrator_loop(project_id: str):
             run.is_running = False
             
             # Log failure
+            agent_provider = "Nebius Token Factory" if agent in ("Requirement Agent", "Architecture Agent", "Planner Agent", "Reviewer Agent", "Test Agent") else "NVIDIA"
+            agent_model = nebius_client.model if agent in ("Requirement Agent", "Architecture Agent", "Planner Agent", "Reviewer Agent", "Test Agent") else nvidia_client.model
             activity_store.setdefault(project_id, []).insert(0, {
                 "agent": agent,
                 "action": f"Autonomous {action}",
-                "provider": "NVIDIA",
-                "model": nvidia_client.model,
+                "provider": agent_provider,
+                "model": agent_model,
                 "status": "failed",
                 "duration_ms": 0,
                 "summary": str(e),

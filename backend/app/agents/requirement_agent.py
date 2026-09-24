@@ -5,7 +5,7 @@ import time
 
 from pydantic import ValidationError
 
-from app.ai.nvidia_client import NVIDIAResponse, nvidia_client
+from app.ai.nebius_client import NebiusResponse, nebius_client
 from app.schemas import ProjectContext, RequirementAnalysis
 
 SYSTEM_PROMPT = """You are the Requirement Agent inside ProjectPilot AI.
@@ -49,6 +49,12 @@ def _strip_json_fence(content: str) -> str:
 
 
 class RequirementAgent:
+    provider: str = "Nebius Token Factory"
+
+    @property
+    def model(self) -> str:
+        return nebius_client.model
+
     def analyze(self, project: ProjectContext) -> tuple[RequirementAnalysis, int]:
         prompt = json.dumps(
             {
@@ -64,7 +70,7 @@ class RequirementAgent:
             ensure_ascii=True,
         )
         started = time.perf_counter()
-        response = nvidia_client.generate(
+        response = nebius_client.generate(
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
@@ -81,7 +87,7 @@ class RequirementAgent:
                 "No markdown or explanatory text.\n\n"
                 f"Previous response:\n{response.content}"
             )
-            response = nvidia_client.generate(
+            response = nebius_client.generate(
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": repair_prompt},
@@ -95,8 +101,8 @@ class RequirementAgent:
             raise RuntimeError("Requirement Agent returned invalid structured JSON")
         return result, round((time.perf_counter() - started) * 1000)
 
-    def _parse(self, response: NVIDIAResponse, attempt: str) -> RequirementAnalysis | None:
-        debug = os.getenv("NEMOTRON_DEBUG_RESPONSES", "0") == "1"
+    def _parse(self, response: NebiusResponse, attempt: str) -> RequirementAnalysis | None:
+        debug = os.getenv("NEBIUS_DEBUG_RESPONSES", os.getenv("NEMOTRON_DEBUG_RESPONSES", "0")) == "1"
         if debug:
             print(f"Requirement Agent {attempt} finish_reason={response.finish_reason} content_length={len(response.content)}")
         try:

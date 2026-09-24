@@ -4,7 +4,7 @@ import time
 
 from pydantic import ValidationError
 
-from app.ai.nvidia_client import NVIDIAResponse, nvidia_client
+from app.ai.nebius_client import NebiusResponse, nebius_client
 from app.schemas import ArchitectureAnalysis, ProjectContext, RequirementAnalysis
 
 SYSTEM_PROMPT = """You are the Architecture Agent inside ProjectPilot AI.
@@ -59,6 +59,12 @@ def _normalize_component_types(payload: dict) -> dict:
 
 
 class ArchitectureAgent:
+    provider: str = "Nebius Token Factory"
+
+    @property
+    def model(self) -> str:
+        return nebius_client.model
+
     def analyze(self, project: ProjectContext, requirements: RequirementAnalysis) -> tuple[ArchitectureAnalysis, int]:
         prompt = json.dumps(
             {
@@ -77,7 +83,7 @@ class ArchitectureAgent:
             ensure_ascii=True,
         )
         started = time.perf_counter()
-        response = nvidia_client.generate(
+        response = nebius_client.generate(
             messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": prompt}],
             response_format={"type": "json_object"},
             enable_thinking=False,
@@ -91,7 +97,7 @@ class ArchitectureAgent:
                 "No markdown or explanatory text.\n\n"
                 f"Previous response:\n{response.content}"
             )
-            response = nvidia_client.generate(
+            response = nebius_client.generate(
                 messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": repair_prompt}],
                 response_format={"type": "json_object"},
                 enable_thinking=False,
@@ -102,8 +108,8 @@ class ArchitectureAgent:
             raise RuntimeError("INVALID_AI_RESPONSE")
         return result, round((time.perf_counter() - started) * 1000)
 
-    def _parse(self, response: NVIDIAResponse, attempt: str) -> ArchitectureAnalysis | None:
-        debug = os.getenv("NEMOTRON_DEBUG_RESPONSES", "0") == "1"
+    def _parse(self, response: NebiusResponse, attempt: str) -> ArchitectureAnalysis | None:
+        debug = os.getenv("NEBIUS_DEBUG_RESPONSES", os.getenv("NEMOTRON_DEBUG_RESPONSES", "0")) == "1"
         if debug:
             print(f"Architecture Agent {attempt} finish_reason={response.finish_reason} content_length={len(response.content)}")
             print("RAW CONTENT START")

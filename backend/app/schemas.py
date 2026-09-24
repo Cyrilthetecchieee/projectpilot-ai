@@ -39,7 +39,7 @@ class RequirementsRequest(BaseModel):
 class RequirementsResponse(RequirementAnalysis):
     project_id: str
     agent: str = "Requirement Agent"
-    provider: str = "NVIDIA"
+    provider: str = "Nebius Token Factory"
     model: str
     duration_ms: int
     summary: str
@@ -101,7 +101,7 @@ class ArchitectureRequest(BaseModel):
 class ArchitectureResponse(ArchitectureAnalysis):
     project_id: str
     agent: str = "Architecture Agent"
-    provider: str = "NVIDIA"
+    provider: str = "Nebius Token Factory"
     model: str
     duration_ms: int
 
@@ -150,7 +150,7 @@ class PlannerRequest(BaseModel):
 class PlannerResponse(ExecutionPlan):
     project_id: str
     agent: str = "Planner Agent"
-    provider: str = "NVIDIA"
+    provider: str = "Nebius Token Factory"
     model: str
     duration_ms: int
 
@@ -177,7 +177,7 @@ class ReviewRequest(BaseModel):
 class ReviewResponse(ReviewAnalysis):
     project_id: str
     agent: str = "Reviewer Agent"
-    provider: str = "NVIDIA"
+    provider: str = "Nebius Token Factory"
     model: str
     duration_ms: int
 
@@ -200,7 +200,7 @@ class TestRequest(BaseModel):
 class TestResponse(TestAnalysis):
     project_id: str
     agent: str = "Test Agent"
-    provider: str = "NVIDIA"
+    provider: str = "Nebius Token Factory"
     model: str
     duration_ms: int
 

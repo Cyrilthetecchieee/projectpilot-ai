@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from app.ai.nvidia_client import NVIDIAResponse, nvidia_client
+from app.ai.nebius_client import NebiusResponse, nebius_client
 from app.schemas import ArchitectureAnalysis, ExecutionPlan, ProjectContext, RequirementAnalysis
 
 SYSTEM_PROMPT = """You are the Planner Agent inside ProjectPilot AI.
@@ -30,6 +30,10 @@ Instead generate specific actions with measurable completion criteria.
 Respect project constraints, technologies, timeline, current stage, requirements, architecture components, interfaces and identified architecture gaps.
 
 Order work according to technical dependencies. Every task that relies on another task (e.g. implementation relying on interface definition, or verification relying on hardware assembly) MUST list those predecessor task IDs in its `dependencies` array.
+
+Ensure strict logical consistency across the plan:
+- Never state or imply in planning_notes or task descriptions that tasks can run in parallel if one explicitly or transitively depends on another.
+- Ensure critical_path represents the longest sequential chain of dependent tasks.
 
 Do not assume unavailable resources.
 
@@ -84,7 +88,12 @@ def _parse_final_content(content: str) -> str:
     cleaned = content.strip()
     cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\s*```$", "", cleaned)
-    return cleaned.strip()
+    cleaned = cleaned.strip()
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        return cleaned[start : end + 1]
+    return cleaned
 
 
 def _normalize_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
@@ -141,11 +150,74 @@ def _sanitize_relationships(plan: ExecutionPlan) -> ExecutionPlan:
             task.milestone_id = fallback_milestone_id
         task.dependencies = [dep for dep in task.dependencies if dep in task_ids and dep != task.id]
 
+    # Break any direct or indirect cycles in dependencies
+    dep_map = {t.id: list(t.dependencies) for t in plan.tasks}
+    visited = set()
+    recursion_stack = set()
+
+    def has_cycle(u: str) -> bool:
+        visited.add(u)
+        recursion_stack.add(u)
+        for v in list(dep_map.get(u, [])):
+            if v not in visited:
+                if has_cycle(v):
+                    return True
+            elif v in recursion_stack:
+                dep_map[u].remove(v)
+                return True
+        recursion_stack.remove(u)
+        return False
+
+    for task in plan.tasks:
+        if task.id not in visited:
+            has_cycle(task.id)
+
+    for task in plan.tasks:
+        task.dependencies = dep_map.get(task.id, [])
+
     plan.critical_path = [cp for cp in plan.critical_path if cp in task_ids]
+
+    # Build transitive closure of dependencies to detect contradictions in planning notes
+    transitive_deps: dict[str, set[str]] = {t.id: set(t.dependencies) for t in plan.tasks}
+    changed = True
+    while changed:
+        changed = False
+        for tid, deps in transitive_deps.items():
+            new_deps = deps.copy()
+            for dep in deps:
+                new_deps.update(transitive_deps.get(dep, set()))
+            if new_deps != deps:
+                transitive_deps[tid] = new_deps
+                changed = True
+
+    cleaned_notes = []
+    for note in plan.planning_notes:
+        note_lower = note.lower()
+        if "parallel" in note_lower or "concurrent" in note_lower:
+            contradiction = False
+            for t1, t1_deps in transitive_deps.items():
+                for t2 in t1_deps:
+                    if (t1.lower() in note_lower or t1.replace("-", " ").lower() in note_lower) and \
+                       (t2.lower() in note_lower or t2.replace("-", " ").lower() in note_lower):
+                        contradiction = True
+                        break
+                if contradiction:
+                    break
+            if contradiction:
+                continue
+        cleaned_notes.append(note)
+    plan.planning_notes = cleaned_notes
+
     return plan
 
 
 class PlannerAgent:
+    provider: str = "Nebius Token Factory"
+
+    @property
+    def model(self) -> str:
+        return nebius_client.model
+
     def analyze(
         self,
         project: ProjectContext,
@@ -185,14 +257,14 @@ class PlannerAgent:
         )
 
         started = time.perf_counter()
-        response = nvidia_client.generate(
+        response = nebius_client.generate(
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},
             ],
             response_format={"type": "json_object"},
             enable_thinking=False,
-            max_tokens=6000,
+            max_tokens=10000,
         )
 
         plan = self._parse(response, "first")
@@ -204,17 +276,18 @@ class PlannerAgent:
                     + "\n".join(rel_errors)
                     + "\n\nReturn the corrected execution plan data as exactly one valid JSON object.\n"
                     "Ensure every task.milestone_id matches an existing milestone.id, every task dependency matches an existing task.id, and all critical_path items match existing task.ids.\n"
+                    "Ensure no contradictory planning notes claim dependent tasks run in parallel.\n"
                     "No markdown or code fences.\n\n"
                     f"Previous response:\n{response.content}"
                 )
-                response = nvidia_client.generate(
+                response = nebius_client.generate(
                     messages=[
                         {"role": "system", "content": SYSTEM_PROMPT},
                         {"role": "user", "content": repair_prompt},
                     ],
                     response_format={"type": "json_object"},
                     enable_thinking=False,
-                    max_tokens=6000,
+                    max_tokens=10000,
                 )
                 plan = self._parse(response, "retry")
         else:
@@ -224,14 +297,14 @@ class PlannerAgent:
                 "No markdown or explanatory text.\n\n"
                 f"Previous response:\n{response.content}"
             )
-            response = nvidia_client.generate(
+            response = nebius_client.generate(
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT},
                     {"role": "user", "content": repair_prompt},
                 ],
                 response_format={"type": "json_object"},
                 enable_thinking=False,
-                max_tokens=6000,
+                max_tokens=10000,
             )
             plan = self._parse(response, "retry")
 
@@ -243,8 +316,8 @@ class PlannerAgent:
         duration_ms = round((time.perf_counter() - started) * 1000)
         return plan, duration_ms
 
-    def _parse(self, response: NVIDIAResponse, attempt: str) -> ExecutionPlan | None:
-        debug = os.getenv("NEMOTRON_DEBUG_RESPONSES", "0") == "1"
+    def _parse(self, response: NebiusResponse, attempt: str) -> ExecutionPlan | None:
+        debug = os.getenv("NEBIUS_DEBUG_RESPONSES", os.getenv("NEMOTRON_DEBUG_RESPONSES", "0")) == "1"
         if debug:
             print(f"Planner Agent {attempt} finish_reason={response.finish_reason} content_length={len(response.content)}")
         try:

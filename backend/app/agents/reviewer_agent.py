@@ -4,7 +4,7 @@ import time
 
 from pydantic import ValidationError
 
-from app.ai.nvidia_client import NVIDIAResponse, nvidia_client
+from app.ai.nebius_client import NebiusResponse, nebius_client
 from app.schemas import ProjectContext, RequirementAnalysis, ArchitectureAnalysis, ReviewAnalysis, ExecutionPlan, PlannerTask, IssueAnalysisResponse
 
 SYSTEM_PROMPT = """You are the Reviewer Agent inside ProjectPilot AI.
@@ -41,6 +41,12 @@ Use exactly this JSON shape:
 """
 
 class ReviewerAgent:
+    provider: str = "Nebius Token Factory"
+
+    @property
+    def model(self) -> str:
+        return nebius_client.model
+
     def analyze(self, project: ProjectContext, requirements: RequirementAnalysis, architecture: ArchitectureAnalysis) -> tuple[ReviewAnalysis, int]:
         prompt = (
             f"Project Name: {project.name}\n"
@@ -51,7 +57,7 @@ class ReviewerAgent:
         )
         
         start_ms = time.time_ms() if hasattr(time, "time_ms") else int(time.time() * 1000)
-        content = nvidia_client.complete_json(SYSTEM_PROMPT, prompt)
+        content = nebius_client.complete_json(SYSTEM_PROMPT, prompt)
         duration_ms = (time.time_ms() if hasattr(time, "time_ms") else int(time.time() * 1000)) - start_ms
 
         content = content.strip()
@@ -62,9 +68,17 @@ class ReviewerAgent:
         if content.endswith("```"):
             content = content[:-3]
         content = content.strip()
+        start = content.find("{")
+        end = content.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            content = content[start : end + 1]
 
         try:
             parsed = json.loads(content)
+            valid_severities = {"critical", "high", "medium", "low"}
+            for risk in parsed.get("risks", []):
+                sev = str(risk.get("severity", "medium")).lower()
+                risk["severity"] = sev if sev in valid_severities else "medium"
             analysis = ReviewAnalysis(**parsed)
             return analysis, duration_ms
         except (json.JSONDecodeError, ValidationError) as e:
@@ -119,10 +133,10 @@ Use exactly this JSON shape:
                     ]
                 }
             ]
-            response = nvidia_client.generate(messages, response_format={"type": "json_object"})
+            response = nebius_client.generate(messages, response_format={"type": "json_object"})
             content = response.content
         else:
-            content = nvidia_client.complete_json(system_prompt, user_prompt)
+            content = nebius_client.complete_json(system_prompt, user_prompt)
             
         duration_ms = (time.time_ms() if hasattr(time, "time_ms") else int(time.time() * 1000)) - start_ms
 
@@ -134,9 +148,16 @@ Use exactly this JSON shape:
         if content.endswith("```"):
             content = content[:-3]
         content = content.strip()
+        start = content.find("{")
+        end = content.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            content = content[start : end + 1]
 
         try:
             parsed = json.loads(content)
+            valid_severities = {"critical", "high", "medium", "low"}
+            sev = str(parsed.get("severity", "medium")).lower()
+            parsed["severity"] = sev if sev in valid_severities else "medium"
             analysis = IssueAnalysisResponse(**parsed)
             return analysis, duration_ms
         except (json.JSONDecodeError, ValidationError) as e:
