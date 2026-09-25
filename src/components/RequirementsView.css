@@ -260,10 +260,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 12px;
-  background: rgba(8, 17, 23, 0.6);
-  border: 1px solid rgba(44, 73, 67, 0.4);
-  border-radius: 6px;
+  padding: 4px 6px;
+  background: transparent;
+  border: none;
   flex: 1;
   max-width: 360px;
 }

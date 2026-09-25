@@ -171,19 +171,17 @@
   display: flex;
   align-items: center;
   gap: 9px;
-  background: rgba(5, 12, 18, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 6px;
-  padding: 7px 12px;
+  background: transparent;
+  border: none;
+  padding: 4px 6px;
   flex: 1;
   max-width: 380px;
   transition: all 0.18s ease;
 }
 
 .execution-search-wrap:focus-within {
-  border-color: rgba(167, 255, 82, 0.4);
-  box-shadow: 0 0 0 2px rgba(167, 255, 82, 0.08);
-  background: rgba(5, 12, 18, 0.9);
+  background: transparent;
+  box-shadow: none;
 }
 
 .execution-search-wrap svg {

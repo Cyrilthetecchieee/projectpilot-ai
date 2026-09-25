@@ -1,6 +1,6 @@
 import { useEffect, useState, type ComponentType, type FormEvent } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Activity, ArrowRight, ArrowUp, BrainCircuit, Check, ChevronRight, CircleAlert, ClipboardCheck, Cloud, Cpu, FileText, Hexagon, Info, LayoutDashboard, Menu, Network, Play, Plus, Search, ShieldCheck, TestTube2, X } from 'lucide-react'
+import { Activity, ArrowRight, ArrowUp, BrainCircuit, Check, ChevronRight, CircleAlert, ClipboardCheck, Cloud, Cpu, FileText, Hexagon, LayoutDashboard, Menu, Network, Play, Plus, Search, ShieldCheck, TestTube2, X } from 'lucide-react'
 import { projectService } from './services/projectService'
 import type { Project } from './types'
 import { EngineState, TechnologyBadge, TechnologyFooter } from './components/TechnologyAttribution'
@@ -183,9 +183,6 @@ function ProjectShell({ children, project }: { children: React.ReactNode; projec
         >
           <div className="project-switcher-top">
             <span className="project-kicker">CURRENT PROJECT</span>
-            <span className="project-popup-badge" title="Workspace info & switcher">
-              <Info size={13} />
-            </span>
           </div>
           <strong>{project.name}</strong>
           <div className="project-switcher-bottom">
