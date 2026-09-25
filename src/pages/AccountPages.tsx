@@ -10,7 +10,6 @@ import {
   Eye,
   EyeOff,
   Hexagon,
-  Key,
   LockKeyhole,
   LogOut,
   Moon,
@@ -444,7 +443,6 @@ export function ProfileMenu({ user, onLogout }: { user: MockUser; onLogout: () =
   const [confirm, setConfirm] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
-  const activeProjectId = projectService.getProjects()[0]?.id || 'smart-helmet'
   const theme = user.preferences?.theme || 'dark'
 
   const toggleTheme = async () => {
@@ -504,10 +502,6 @@ export function ProfileMenu({ user, onLogout }: { user: MockUser; onLogout: () =
             <Link to="/profile" onClick={() => setOpen(false)}>
               <UserRound size={15} />
               View Profile
-            </Link>
-            <Link to={`/project/${activeProjectId}/api-keys`} onClick={() => setOpen(false)}>
-              <Key size={15} />
-              API Keys & Vault
             </Link>
             <Link to="/settings" onClick={() => setOpen(false)}>
               <Settings size={15} />
@@ -839,7 +833,6 @@ export function SettingsPage() {
   if (!user) return <Navigate to="/login" />
 
   const prefs = user.preferences
-  const activeProjectId = projectService.getProjects()[0]?.id || 'smart-helmet'
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -926,7 +919,7 @@ export function SettingsPage() {
               onClick={() => setActiveTab('security')}
             >
               <LockKeyhole size={15} />
-              Security & API Keys
+              Security & Access
             </button>
           </nav>
 
@@ -1068,19 +1061,8 @@ export function SettingsPage() {
                 <span className="eyebrow">SECURITY & ACCESS CREDENTIALS</span>
                 <h2>Session & API Tokens</h2>
                 <p>
-                  Manage authentication credentials for external CI/CD pipelines, agent runners, and
-                  your login password.
+                  Manage authentication credentials for session security and your login password.
                 </p>
-
-                <div className="security-row">
-                  <div>
-                    <strong>API Keys & Integration Tokens</strong>
-                    <span>Generate scoped credentials for external agents and model inference</span>
-                  </div>
-                  <Link className="btn btn-secondary" to={`/project/${activeProjectId}/api-keys`}>
-                    <Key size={14} /> Open API Keys Vault
-                  </Link>
-                </div>
 
                 <div className="security-row">
                   <div>

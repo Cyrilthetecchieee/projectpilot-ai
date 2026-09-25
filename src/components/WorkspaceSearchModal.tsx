@@ -6,7 +6,6 @@ import {
   CircleAlert,
   ClipboardCheck,
   FileText,
-  Key,
   LayoutDashboard,
   Network,
   Plus,
@@ -136,19 +135,6 @@ export function WorkspaceSearchModal({ isOpen, onClose, project }: WorkspaceSear
         badgeTone: 'cyan',
         icon: Activity,
       },
-      {
-        id: 'page-api-keys',
-        title: 'API Keys & Engine Vault',
-        subtitle: 'Manage NVIDIA Nemotron credentials & Nebius Token Factory access',
-        category: 'pages',
-        categoryLabel: 'Workspace Page',
-        route: `/project/${project.id}/api-keys`,
-        badge: 'SECURITY',
-        badgeTone: 'lime',
-        icon: Key,
-      },
-
-
       {
         id: 'action-analyze-req',
         title: 'Analyze & Structure Requirements',

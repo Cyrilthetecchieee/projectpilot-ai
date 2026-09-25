@@ -7,7 +7,6 @@ import {
   CircleAlert,
   ClipboardCheck,
   FileText,
-  Key,
   Network,
   Play,
   ShieldCheck,
@@ -340,23 +339,6 @@ export function OverviewView({ project, refresh }: OverviewViewProps) {
             <span className="module-primary-stat">{testPassRate}% Pass Rate</span>
             <span className="module-subtext">
               {passedTests} passed · {totalTests - passedTests} pending verification
-            </span>
-          </div>
-        </Link>
-
-        {/* API Keys */}
-        <Link to={`/project/${project.id}/api-keys`} className="module-nav-card">
-          <div className="module-card-top">
-            <div className="module-icon-box" style={{ color: 'var(--lime)' }}>
-              <Key size={18} />
-            </div>
-            <ArrowRight size={16} className="module-arrow-icon" />
-          </div>
-          <div className="module-card-content">
-            <span className="module-title">API Keys & Vault</span>
-            <span className="module-primary-stat">AES-256 Secured</span>
-            <span className="module-subtext">
-              Provider credentials, platform tokens, and inference status
             </span>
           </div>
         </Link>

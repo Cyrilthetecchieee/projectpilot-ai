@@ -1,14 +1,14 @@
 import { useEffect, useState, type ComponentType, type FormEvent } from 'react'
 import { BrowserRouter, Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { Activity, ArrowRight, ArrowUp, BrainCircuit, Check, ChevronDown, ChevronRight, CircleAlert, ClipboardCheck, Cloud, Cpu, FileText, Hexagon, Info, Key, LayoutDashboard, Menu, Network, Play, Plus, Search, ShieldCheck, TestTube2, X } from 'lucide-react'
+import { Activity, ArrowRight, ArrowUp, BrainCircuit, Check, ChevronRight, CircleAlert, ClipboardCheck, Cloud, Cpu, FileText, Hexagon, Info, LayoutDashboard, Menu, Network, Play, Plus, Search, ShieldCheck, TestTube2, X } from 'lucide-react'
 import { projectService } from './services/projectService'
 import type { Project } from './types'
 import { EngineState, TechnologyBadge, TechnologyFooter } from './components/TechnologyAttribution'
 import { Avatar, LoginPage, ProfileMenu, ProfilePage, ProtectedRoute, SettingsPage, SignupPage } from './pages/AccountPages'
 import { useAuth } from './context/AuthContext'
-import { ApiKeysView } from './components/ApiKeysView'
 import { InitializationPage } from './pages/InitializationPage'
 import { EngineeringAgentsSection } from './components/EngineeringAgentsSection'
+import { CapabilitiesSection } from './components/CapabilitiesSection'
 import { WorkspaceSearchModal } from './components/WorkspaceSearchModal'
 import { ExecutionPlanView } from './components/ExecutionPlanView'
 import { AgentActivityView } from './components/AgentActivityView'
@@ -20,8 +20,8 @@ import { OverviewView } from './components/OverviewView'
 import { ProjectDetailsModal } from './components/ProjectDetailsModal'
 import './App.css'
 
-const icons = { Overview: LayoutDashboard, Requirements: FileText, Architecture: Network, 'Execution Plan': ClipboardCheck, 'Risks & Gaps': CircleAlert, Testing: TestTube2, 'Agent Activity': Activity, 'API Keys': Key }
-const routeNames: Record<string, string> = { Requirements: 'requirements', Architecture: 'architecture', 'Execution Plan': 'tasks', 'Risks & Gaps': 'risks', Testing: 'testing', 'Agent Activity': 'activity', 'API Keys': 'api-keys' }
+const icons = { Overview: LayoutDashboard, Requirements: FileText, Architecture: Network, 'Execution Plan': ClipboardCheck, 'Risks & Gaps': CircleAlert, Testing: TestTube2, 'Agent Activity': Activity }
+const routeNames: Record<string, string> = { Requirements: 'requirements', Architecture: 'architecture', 'Execution Plan': 'tasks', 'Risks & Gaps': 'risks', Testing: 'testing', 'Agent Activity': 'activity' }
 
 type Icon = ComponentType<{ size?: number; strokeWidth?: number }>
 
@@ -39,7 +39,7 @@ function Landing() {
         <Logo />
         <nav>
           <a href="#agents">Agents</a>
-          <a href="#agents">Capabilities</a>
+          <a href="#capabilities">Capabilities</a>
           <a href="#workflow">Architecture</a>
         </nav>
         <div className="marketing-actions">
@@ -65,20 +65,13 @@ function Landing() {
 
       <EngineeringAgentsSection />
 
+      <CapabilitiesSection />
+
       <section className="section technology-section">
         <SectionIntro title="Built on an open AI stack designed for agentic engineering." />
         <div className="technology-cards">
           <TechnologyCard title="NVIDIA Nemotron" label="AI REASONING" icon={BrainCircuit} text="Powers ProjectPilot's specialized engineering agents for requirements analysis, architecture reasoning, project review, risk identification, planning, and verification." capabilities={['Requirement reasoning', 'Architecture analysis', 'Engineering review', 'Risk detection', 'Test generation']} />
           <TechnologyCard title="Nebius Token Factory" label="AI INFRASTRUCTURE" icon={Cloud} text="Provides the inference layer used by ProjectPilot to access NVIDIA Nemotron models and execute AI workflows." capabilities={['Model access', 'Inference', 'Agent requests', 'Scalable AI execution']} />
-        </div>
-        <div className="technology-flow">
-          <span>ProjectPilot</span>
-          <ChevronDown size={16} />
-          <span>Agent Engine</span>
-          <ChevronDown size={16} />
-          <span>Nebius Token Factory</span>
-          <ChevronDown size={16} />
-          <span>NVIDIA Nemotron</span>
         </div>
       </section>
 
@@ -249,10 +242,6 @@ function ProjectShell({ children, project }: { children: React.ReactNode; projec
 
         <div className="side-footer">
           <EngineState />
-          <button className="side-settings" onClick={() => navigate(`/project/${project.id}/api-keys`)}>
-            <Key size={15} />
-            API Keys & Access
-          </button>
           <button className="back-home" onClick={() => navigate('/')}>
             <ArrowRight size={15} />
             Exit workspace
@@ -330,7 +319,6 @@ function ProjectRoute() {
         <Route path="risks" element={<RisksView project={project} refresh={refresh} />} />
         <Route path="testing" element={<TestingView project={project} refresh={refresh} />} />
         <Route path="activity" element={<AgentActivityView project={project} />} />
-        <Route path="api-keys" element={<ApiKeysView project={project} />} />
       </Routes>
     </ProjectShell>
   );
