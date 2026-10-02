@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -246,7 +246,14 @@ class IssueRecord(BaseModel):
 from enum import Enum
 
 class OrchestratorState(str, Enum):
+    IDLE = "IDLE"
+    RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
+    FAILED = "FAILED"
+    COMPLETED = "COMPLETED"
+    # Backwards compatibility
     INITIALIZED = "INITIALIZED"
+    READY = "READY"
     REQUIREMENTS_PENDING = "REQUIREMENTS_PENDING"
     REQUIREMENTS_COMPLETE = "REQUIREMENTS_COMPLETE"
     ARCHITECTURE_PENDING = "ARCHITECTURE_PENDING"
@@ -257,10 +264,25 @@ class OrchestratorState(str, Enum):
     REVIEW_COMPLETE = "REVIEW_COMPLETE"
     TESTING_PENDING = "TESTING_PENDING"
     TESTING_COMPLETE = "TESTING_COMPLETE"
-    READY = "READY"
-    PAUSED = "PAUSED"
-    FAILED = "FAILED"
     BLOCKED = "BLOCKED"
+
+class InvalidationRecord(BaseModel):
+    timestamp: str
+    trigger_stage: str
+    invalidated_stages: list[str]
+    reason: str
+
+
+class HumanDecisionPrompt(BaseModel):
+    question: str
+    affected_stage: str
+    evidence: str
+    mitigation: str = ""
+
+
+class HumanDecisionInput(BaseModel):
+    decision: str
+
 
 class DecisionRecord(BaseModel):
     id: str
@@ -273,9 +295,35 @@ class DecisionRecord(BaseModel):
     result: str = ""
     retry_count: int = 0
 
+
+class RecoveryRecord(BaseModel):
+    id: str
+    issue_id: str
+    timestamp: str
+    classification: str
+    target: str
+    summary: str
+    actions_taken: list[str] = Field(default_factory=list)
+    result: str = ""
+
+
+class ManualInterventionPrompt(BaseModel):
+    issue_id: str
+    likely_cause: str
+    recommended_action: str
+    affected_components: list[str] = Field(default_factory=list)
+    verification_required: str = ""
+
+
 class OrchestratorRun(BaseModel):
     project_id: str
-    state: OrchestratorState
+    state: OrchestratorState = OrchestratorState.IDLE
+    current_stage: str = ""
+    completed_stages: list[str] = Field(default_factory=list)
+    failed_stage: str = ""
+    last_error: str = ""
+    started_at: str = ""
+    completed_at: str = ""
     current_agent: str = ""
     current_action: str = ""
     progress_steps: list[str] = Field(default_factory=list)
@@ -286,3 +334,66 @@ class OrchestratorRun(BaseModel):
     human_input_required: bool = False
     human_input_reason: str = ""
     error_message: str = ""
+
+    # Phase 2 additions
+    review_iteration: int = 1
+    correction_count: int = 0
+    max_corrections: int = 2
+    correction_target: str = ""
+    review_decision: str = ""
+    unresolved_findings: list[dict[str, Any]] = Field(default_factory=list)
+    invalidation_history: list[InvalidationRecord] = Field(default_factory=list)
+    human_decision_prompt: HumanDecisionPrompt | None = None
+
+    # Phase 3 additions
+    active_issue_id: str = ""
+    recovery_state: str = "IDLE"
+    recovery_type: str = ""
+    recovery_target: str = ""
+    recovery_attempt: int = 0
+    max_recovery_attempts: int = 2
+    human_decision_response: str = ""
+    manual_intervention_required: bool = False
+    manual_intervention_completed: bool = False
+    manual_intervention_prompt: ManualInterventionPrompt | None = None
+    recovery_history: list[RecoveryRecord] = Field(default_factory=list)
+
+    # Long-Term Engineering Memory additions
+    retrieved_memories: list["RetrievedMemory"] = Field(default_factory=list)
+
+
+class EngineeringMemory(BaseModel):
+    memory_id: str
+    source_project_id: str
+    source_issue_id: str | None = None
+    created_at: str
+    category: str  # "Architecture", "Execution Plan", "Testing", "Operational", "Hardware"
+    problem_pattern: str
+    context_tags: list[str] = Field(default_factory=list)
+    technologies: list[str] = Field(default_factory=list)
+    affected_component_types: list[str] = Field(default_factory=list)
+    diagnosis: str
+    successful_action: str
+    verification_summary: str
+    requirement_patterns: list[str] = Field(default_factory=list)
+    architecture_patterns: list[str] = Field(default_factory=list)
+    risk_patterns: list[str] = Field(default_factory=list)
+    confidence: float = 0.8
+    times_retrieved: int = 0
+    times_helpful: int = 0
+    status: str = "ACTIVE"  # "ACTIVE" | "ARCHIVED"
+
+
+class RetrievedMemory(BaseModel):
+    memory: EngineeringMemory
+    relevance_score: float
+    reason_retrieved: str
+    agent_used_by: str
+
+
+class MemoryFeedbackInput(BaseModel):
+    helpful: bool
+
+
+OrchestratorRun.model_rebuild()
+

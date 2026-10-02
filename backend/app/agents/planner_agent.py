@@ -7,35 +7,38 @@ from typing import Any
 from pydantic import ValidationError
 
 from app.ai.nebius_client import NebiusResponse, nebius_client
+from app.ai.quality_guard import quality_guard
 from app.schemas import ArchitectureAnalysis, ExecutionPlan, ProjectContext, RequirementAnalysis
 
 SYSTEM_PROMPT = """You are the Planner Agent inside ProjectPilot AI.
 
-Your responsibility is to convert an engineering project's validated requirements and architecture into a realistic, dependency-aware execution plan.
+Your responsibility is to convert an engineering project's validated requirements and architecture into a realistic, project-specific, dependency-aware execution plan.
 
 You are not a general chatbot.
 
-Create concrete engineering work items that a project team could actually execute.
-
-Every task must represent a meaningful engineering action.
-
-Avoid vague tasks such as:
-- Work on backend
-- Complete hardware
-- Do testing
-- Improve system
-
-Instead generate specific actions with measurable completion criteria.
-
-Respect project constraints, technologies, timeline, current stage, requirements, architecture components, interfaces and identified architecture gaps.
+CRITICAL TASK SPECIFICITY GUIDELINES:
+1. Every task must directly implement the concrete architecture components, interfaces, and requirements generated for THIS project.
+2. Avoid generic tasks such as:
+   - "Define interfaces"
+   - "Confirm success criteria"
+   - "Define system interfaces"
+   - "Implement core system"
+   - "Validate functionality"
+   - "Complete hardware"
+   - "Work on backend"
+   - "Do testing"
+   - "Setup project"
+3. Each task title and description must explicitly state WHAT specific engineering artifact, module, circuit, API, protocol, or physical assembly is being built, configured, or tested (e.g. "Wire and calibrate ESP32 ADC for MQ-135 analog telemetry", "Implement Firebase Cloud Function for real-time alert processing", "Design composite thermal barrier test coupon layout").
+4. Every task MUST maintain strict traceability:
+   - `related_requirements`: List the exact requirement titles or IDs from upstream requirements.
+   - `related_components`: List the exact component names or IDs from upstream architecture.
+5. Success criteria must be concrete, observable, measurable engineering milestones (e.g. "Sensor streams JSON payload over MQTT at 10Hz without drops", "P99 latency remains below 100ms").
 
 Order work according to technical dependencies. Every task that relies on another task (e.g. implementation relying on interface definition, or verification relying on hardware assembly) MUST list those predecessor task IDs in its `dependencies` array.
 
 Ensure strict logical consistency across the plan:
 - Never state or imply in planning_notes or task descriptions that tasks can run in parallel if one explicitly or transitively depends on another.
 - Ensure critical_path represents the longest sequential chain of dependent tasks.
-
-Do not assume unavailable resources.
 
 If architecture contains unresolved gaps, create appropriate planning tasks to resolve those gaps before dependent implementation tasks.
 
@@ -62,7 +65,7 @@ Use exactly this JSON shape:
     {
       "id": "task-1",
       "milestone_id": "milestone-1",
-      "title": "Clear engineering action title",
+      "title": "Clear engineering action title with specific technical domain item",
       "description": "Specific technical details of what must be implemented, wired, or configured",
       "priority": "critical|high|medium|low",
       "status": "todo",
@@ -112,6 +115,14 @@ def _normalize_plan_payload(payload: dict[str, Any]) -> dict[str, Any]:
             task["success_criteria"] = []
     if not isinstance(payload.get("milestones"), list):
         payload["milestones"] = []
+    for idx, milestone in enumerate(payload.get("milestones", []), start=1):
+        if not isinstance(milestone.get("order"), int):
+            try:
+                milestone["order"] = int(milestone.get("order", idx))
+            except (ValueError, TypeError):
+                milestone["order"] = idx
+        if milestone.get("order", 0) < 1:
+            milestone["order"] = idx
     if not isinstance(payload.get("critical_path"), list):
         payload["critical_path"] = []
     if not isinstance(payload.get("planning_notes"), list):
@@ -223,38 +234,73 @@ class PlannerAgent:
         project: ProjectContext,
         requirements: RequirementAnalysis,
         architecture: ArchitectureAnalysis,
+        existing_plan: ExecutionPlan | None = None,
+        reviewer_findings: list[dict[str, Any]] | None = None,
+        issue_context: dict[str, Any] | None = None,
+        memory_context: str | None = None,
     ) -> tuple[ExecutionPlan, int]:
-        prompt = json.dumps(
-            {
-                "project_context": {
-                    "name": project.name,
-                    "idea_or_problem": project.idea,
-                    "objective": project.objective,
-                    "type": project.type,
-                    "technologies": project.technologies,
-                    "constraints": project.constraints,
-                    "timeline": project.timeline,
-                    "current_stage": project.stage,
-                },
-                "requirement_agent_output": {
-                    "problem": requirements.problem,
-                    "functional_requirements": [item.model_dump() for item in requirements.functional_requirements],
-                    "non_functional_requirements": [item.model_dump() for item in requirements.non_functional_requirements],
-                    "constraints": requirements.constraints,
-                    "assumptions": requirements.assumptions,
-                    "open_questions": requirements.open_questions,
-                },
-                "architecture_agent_output": {
-                    "summary": architecture.summary,
-                    "components": [comp.model_dump() for comp in architecture.components],
-                    "connections": [conn.model_dump() for conn in architecture.connections],
-                    "data_flow": [flow.model_dump() for flow in architecture.data_flow],
-                    "architecture_decisions": [dec.model_dump() for dec in architecture.architecture_decisions],
-                    "architecture_gaps": [gap.model_dump() for gap in architecture.architecture_gaps],
-                },
+        payload: dict[str, Any] = {
+            "project_context": {
+                "name": project.name,
+                "idea_or_problem": project.idea,
+                "objective": project.objective,
+                "type": project.type,
+                "technologies": project.technologies,
+                "constraints": project.constraints,
+                "timeline": project.timeline,
+                "current_stage": project.stage,
             },
-            ensure_ascii=True,
-        )
+            "requirement_agent_output": {
+                "problem": requirements.problem,
+                "functional_requirements": [item.model_dump() for item in requirements.functional_requirements],
+                "non_functional_requirements": [item.model_dump() for item in requirements.non_functional_requirements],
+                "constraints": requirements.constraints,
+                "assumptions": requirements.assumptions,
+                "open_questions": requirements.open_questions,
+            },
+            "architecture_agent_output": {
+                "summary": architecture.summary,
+                "components": [comp.model_dump() for comp in architecture.components],
+                "connections": [conn.model_dump() for conn in architecture.connections],
+                "data_flow": [flow.model_dump() for flow in architecture.data_flow],
+                "architecture_decisions": [dec.model_dump() for dec in architecture.architecture_decisions],
+                "architecture_gaps": [gap.model_dump() for gap in architecture.architecture_gaps],
+            },
+        }
+
+        if existing_plan and issue_context:
+            payload["existing_plan"] = existing_plan.model_dump()
+            payload["issue_recovery_context"] = issue_context
+            payload["correction_instructions"] = (
+                f"ISSUE RECOVERY MODE: An engineering issue occurred: {issue_context.get('description', '')}. "
+                f"Root causes: {issue_context.get('likely_causes', [])}. "
+                f"Recommended fix: {issue_context.get('recommended_fix', [])}. "
+                "Update the execution plan to incorporate required recovery tasks, correct scheduling/dependencies, and resolve the issue. "
+                "CRITICAL RULES: "
+                "1. Preserve all existing valid tasks, milestones, and dependencies. "
+                "2. Preserve existing task IDs (e.g., 'task-1') and milestone IDs. "
+                "3. Only add new task IDs if genuinely introducing new recovery tasks. "
+                "4. Ensure success criteria address the reported failure."
+            )
+        elif existing_plan and reviewer_findings:
+            payload["existing_plan"] = existing_plan.model_dump()
+            payload["reviewer_findings_to_correct"] = reviewer_findings
+            payload["correction_instructions"] = (
+                "CORRECTION MODE: The Reviewer Agent identified the planning/task issues listed above. "
+                "Update the existing execution plan to thoroughly resolve each identified finding. "
+                "CRITICAL RULES: "
+                "1. Preserve all existing valid tasks, milestones, and dependencies. "
+                "2. Preserve existing task IDs (e.g. 'task-1') and milestone IDs. "
+                "3. Only add new task IDs if genuinely introducing new tasks. "
+                "4. Incorporate explicit mitigation tasks, dependencies, or criteria for the identified risks."
+            )
+
+        prompt = json.dumps(payload, ensure_ascii=True)
+        if memory_context:
+            from app.services.memory_service import memory_service
+            mem_text = memory_service.format_memory_for_prompt(memory_context)
+            if mem_text:
+                prompt = f"{prompt}\n\n{mem_text}"
 
         started = time.perf_counter()
         response = nebius_client.generate(
@@ -313,6 +359,30 @@ class PlannerAgent:
 
         # Sanitize any remaining orphaned references safely
         plan = _sanitize_relationships(plan)
+
+        # Quality Guard Check & at most ONE corrective regeneration pass
+        issues = quality_guard.validate_plan(plan)
+        if issues:
+            correction_prompt = quality_guard.build_correction_prompt("Planner Agent", issues, response.content)
+            corr_response = nebius_client.generate(
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": response.content},
+                    {"role": "user", "content": correction_prompt},
+                ],
+                response_format={"type": "json_object"},
+                enable_thinking=False,
+                max_tokens=10000,
+            )
+            corr_plan = self._parse(corr_response, "correction")
+            if corr_plan is not None:
+                corr_plan = _sanitize_relationships(corr_plan)
+                remaining_issues = quality_guard.validate_plan(corr_plan)
+                if remaining_issues:
+                    print(f"[Quality Guard Warning] Planner Agent retained generic tasks after correction: {remaining_issues}")
+                plan = corr_plan
+
         duration_ms = round((time.perf_counter() - started) * 1000)
         return plan, duration_ms
 

@@ -1,20 +1,34 @@
 import json
 import base64
 import time
+from typing import Any
 
 from pydantic import ValidationError
 
 from app.ai.nebius_client import NebiusResponse, nebius_client
+from app.ai.quality_guard import quality_guard
 from app.schemas import ProjectContext, RequirementAnalysis, ArchitectureAnalysis, ReviewAnalysis, ExecutionPlan, PlannerTask, IssueAnalysisResponse
 
 SYSTEM_PROMPT = """You are the Reviewer Agent inside ProjectPilot AI.
 
-Your responsibility is to review a project's context, requirements, and architecture to identify engineering risks, gaps, inconsistencies, and missing decisions. You are not a general chatbot. Review only what is justified by the supplied context.
+Your responsibility is to review a project's context, requirements, architecture, and execution plan to identify concrete engineering risks, gaps, inconsistencies, and unhandled failure modes. You are not a general chatbot. Review only what is justified by the supplied context.
 
-Identify meaningful engineering risks.
+CRITICAL REVIEW GUIDELINES:
+1. Ground every finding in specific project evidence. Findings must reference actual requirement titles, architecture components, plan tasks, technologies, protocols, hardware interfaces, or physical constraints.
+2. Avoid vague, generic findings such as:
+   - "Failure behavior needs an explicit decision"
+   - "Integration boundary is not finalized"
+   - "Missing documentation"
+   - "Error handling needed"
+   Instead, state specific findings like: "The ESP32-to-Firebase telemetry interface does not define retry buffering during Wi-Fi connection loss, risking sensor data drops."
+3. Each risk must clearly explain:
+   - WHAT is technically flawed or unaddressed
+   - WHERE it occurs (naming specific components, requirements, or interfaces)
+   - WHY it matters (concrete engineering consequence: data loss, physical damage, race condition, SLA violation)
+   - WHAT should be done (concrete technical mitigation)
 
 To optimize processing, you MUST strictly adhere to the following limits:
-- Keep all descriptions, details, and recommendations extremely concise
+- Keep all descriptions, details, and recommendations concise
 - Do not provide long explanations or justifications outside the JSON
 - Limit risks to a maximum of 5
 
@@ -28,13 +42,13 @@ Follow the supplied schema exactly.
 
 Use exactly this JSON shape:
 {
-  "summary": "Review summary",
+  "summary": "Review summary identifying key technical risks and gaps",
   "risks": [
     {
-      "title": "Short title of the risk",
+      "title": "Specific risk title referencing component or technology",
       "severity": "critical|high|medium|low",
-      "detail": "Concise detail of the risk and why it exists",
-      "recommendation": "Concise recommended action"
+      "detail": "WHAT is wrong, WHERE it occurs, and WHY it matters in this project",
+      "recommendation": "Concrete technical mitigation"
     }
   ]
 }
@@ -47,19 +61,62 @@ class ReviewerAgent:
     def model(self) -> str:
         return nebius_client.model
 
-    def analyze(self, project: ProjectContext, requirements: RequirementAnalysis, architecture: ArchitectureAnalysis) -> tuple[ReviewAnalysis, int]:
-        prompt = (
-            f"Project Name: {project.name}\n"
-            f"Type: {project.type}\n"
-            f"Objective: {project.objective}\n\n"
-            f"Requirements:\n{requirements.model_dump_json(indent=2)}\n\n"
-            f"Architecture:\n{architecture.model_dump_json(indent=2)}\n\n"
-        )
+    def analyze(
+        self,
+        project: ProjectContext,
+        requirements: RequirementAnalysis,
+        architecture: ArchitectureAnalysis,
+        plan: ExecutionPlan | None = None,
+        memory_context: str | None = None,
+    ) -> tuple[ReviewAnalysis, int]:
+        prompt_parts = [
+            f"Project Name: {project.name}",
+            f"Type: {project.type}",
+            f"Objective: {project.objective}\n",
+            f"Requirements:\n{requirements.model_dump_json(indent=2)}\n",
+            f"Architecture:\n{architecture.model_dump_json(indent=2)}\n",
+        ]
+        if plan:
+            prompt_parts.append(f"Execution Plan:\n{plan.model_dump_json(indent=2)}\n")
+
+        if memory_context:
+            from app.services.memory_service import memory_service
+            mem_text = memory_service.format_memory_for_prompt(memory_context)
+            if mem_text:
+                prompt_parts.append(mem_text)
+
+        prompt = "\n".join(prompt_parts)
         
         start_ms = time.time_ms() if hasattr(time, "time_ms") else int(time.time() * 1000)
         content = nebius_client.complete_json(SYSTEM_PROMPT, prompt)
         duration_ms = (time.time_ms() if hasattr(time, "time_ms") else int(time.time() * 1000)) - start_ms
 
+        content = self._clean_content(content)
+
+        try:
+            analysis = self._parse_json(content)
+        except (json.JSONDecodeError, ValidationError) as e:
+            raise ValueError(f"ReviewerAgent returned invalid JSON or failed schema validation: {e}\n\nContent:\n{content}")
+
+        # Quality Guard Check & at most ONE corrective regeneration pass
+        issues = quality_guard.validate_review(analysis)
+        if issues:
+            correction_prompt = quality_guard.build_correction_prompt("Reviewer Agent", issues, content)
+            combined_prompt = f"{prompt}\n\n{correction_prompt}"
+            corr_content = nebius_client.complete_json(SYSTEM_PROMPT, combined_prompt)
+            corr_content = self._clean_content(corr_content)
+            try:
+                corr_analysis = self._parse_json(corr_content)
+                remaining_issues = quality_guard.validate_review(corr_analysis)
+                if remaining_issues:
+                    print(f"[Quality Guard Warning] Reviewer Agent retained generic elements after correction: {remaining_issues}")
+                analysis = corr_analysis
+            except (json.JSONDecodeError, ValidationError):
+                pass
+
+        return analysis, duration_ms
+
+    def _clean_content(self, content: str) -> str:
         content = content.strip()
         if content.startswith("```json"):
             content = content[7:]
@@ -72,17 +129,21 @@ class ReviewerAgent:
         end = content.rfind("}")
         if start != -1 and end != -1 and end > start:
             content = content[start : end + 1]
+        return content
 
-        try:
-            parsed = json.loads(content)
-            valid_severities = {"critical", "high", "medium", "low"}
-            for risk in parsed.get("risks", []):
-                sev = str(risk.get("severity", "medium")).lower()
-                risk["severity"] = sev if sev in valid_severities else "medium"
-            analysis = ReviewAnalysis(**parsed)
-            return analysis, duration_ms
-        except (json.JSONDecodeError, ValidationError) as e:
-            raise ValueError(f"ReviewerAgent returned invalid JSON or failed schema validation: {e}\n\nContent:\n{content}")
+    def _parse_json(self, content: str) -> ReviewAnalysis:
+        parsed = json.loads(content)
+        if not isinstance(parsed, dict):
+            parsed = {"summary": "System review completed.", "risks": []}
+        if "summary" not in parsed or not parsed["summary"]:
+            parsed["summary"] = "Review of architecture and execution plan completed."
+        if "risks" not in parsed or not isinstance(parsed["risks"], list):
+            parsed["risks"] = []
+        valid_severities = {"critical", "high", "medium", "low"}
+        for risk in parsed.get("risks", []):
+            sev = str(risk.get("severity", "medium")).lower()
+            risk["severity"] = sev if sev in valid_severities else "medium"
+        return ReviewAnalysis(**parsed)
 
 
     def analyze_issue(self, project: ProjectContext, requirements: RequirementAnalysis, architecture: ArchitectureAnalysis, plan: ExecutionPlan, task: PlannerTask, description: str, image_bytes: bytes | None) -> tuple[IssueAnalysisResponse, int]:

@@ -1,10 +1,13 @@
-import { Plus } from 'lucide-react'
+import { Plus, Sparkles, CheckCircle2, AlertCircle } from 'lucide-react'
 import type { IssueRecord, Project, Task } from '../types'
 import { useState } from 'react'
 import { projectService } from '../services/projectService'
+import { agentService } from '../services/agentService'
 
 export function IssueAnalysisResult({ issue, project, refresh }: { issue: IssueRecord, project: Project, refresh: () => void }) {
   const [addingTask, setAddingTask] = useState(false)
+  const [recovering, setRecovering] = useState(false)
+  const [recoveryMsg, setRecoveryMsg] = useState<{ text: string; isError?: boolean } | null>(null)
   const analysis = issue.analysis
 
   const addRecoveryTask = () => {
@@ -30,6 +33,20 @@ export function IssueAnalysisResult({ issue, project, refresh }: { issue: IssueR
     projectService.saveProject(p)
     refresh()
     setTimeout(() => setAddingTask(false), 500)
+  }
+
+  const startAutonomousRecovery = async () => {
+    setRecovering(true)
+    setRecoveryMsg(null)
+    try {
+      await agentService.recoverIssue(project.id, issue.id)
+      setRecoveryMsg({ text: 'Autonomous Issue Recovery started! Check Orchestrator panel for live progress.' })
+      refresh()
+    } catch (err: any) {
+      setRecoveryMsg({ text: err.message || 'Failed to start recovery.', isError: true })
+    } finally {
+      setRecovering(false)
+    }
   }
 
   return (
@@ -97,18 +114,31 @@ export function IssueAnalysisResult({ issue, project, refresh }: { issue: IssueR
         <p><strong>Can other work continue?</strong> {analysis.can_continue_other_tasks ? 'Yes' : 'No'}</p>
       </div>
 
-      {analysis.recovery_task.needed && (
-        <div className="recovery-task-prompt">
-          <div className="recovery-info">
-            <strong>Proposed Recovery Task</strong>
-            <p>{analysis.recovery_task.title}</p>
-            <small>Effort: {analysis.recovery_task.estimated_effort}</small>
-          </div>
-          <button className="btn btn-secondary" onClick={addRecoveryTask} disabled={addingTask}>
-            {addingTask ? 'Added!' : <><Plus size={14} /> Add Recovery Task to Plan</>}
+      <div className="issue-recovery-actions" style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+        <span className="eyebrow" style={{ color: 'var(--cyan)' }}>Orchestrator Recovery</span>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn btn-highlight"
+            onClick={startAutonomousRecovery}
+            disabled={recovering}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Sparkles size={14} />
+            {recovering ? 'Starting Recovery Pipeline...' : 'Recover Autonomously'}
           </button>
+          {analysis.recovery_task.needed && (
+            <button className="btn btn-secondary" onClick={addRecoveryTask} disabled={addingTask}>
+              {addingTask ? 'Added!' : <><Plus size={14} /> Add Recovery Task to Plan</>}
+            </button>
+          )}
         </div>
-      )}
+        {recoveryMsg && (
+          <div style={{ fontSize: '12px', color: recoveryMsg.isError ? '#ff4d4d' : 'var(--lime)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            {recoveryMsg.isError ? <AlertCircle size={14} /> : <CheckCircle2 size={14} />}
+            <span>{recoveryMsg.text}</span>
+          </div>
+        )}
+      </div>
     </div>
   )
 }
