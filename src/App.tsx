@@ -18,6 +18,7 @@ import { RisksView } from './components/RisksView'
 import { TestingView } from './components/TestingView'
 import { OverviewView } from './components/OverviewView'
 import { ProjectDetailsModal } from './components/ProjectDetailsModal'
+import { AetherHero } from './components/AetherHero'
 import './App.css'
 
 const icons = { Overview: LayoutDashboard, Requirements: FileText, Architecture: Network, 'Execution Plan': ClipboardCheck, 'Risks & Gaps': CircleAlert, Testing: TestTube2, 'Agent Activity': Activity }
@@ -34,41 +35,46 @@ function Landing() {
   const navigate = useNavigate()
   const { user } = useAuth()
   return (
-    <main className="landing">
-      <header className="marketing-nav">
-        <Logo />
-        <nav>
-          <a href="#agents">Agents</a>
-          <a href="#capabilities">Capabilities</a>
-          <a href="#workflow">Architecture</a>
-        </nav>
-        <div className="marketing-actions">
-          {user ? <Button secondary onClick={() => navigate('/project/smart-helmet')}>Workspace</Button> : <Button secondary onClick={() => navigate('/login')}>Sign In</Button>}
-          <Button onClick={() => navigate(user ? '/new-project' : '/signup')} icon={ArrowRight}>
-            {user ? 'Launch Workspace' : 'Create Account'}
-          </Button>
-          {user && <Link to="/profile" className="nav-profile-badge" title="View Profile"><Avatar user={user} /></Link>}
-        </div>
-      </header>
-
-      <section className="hero-section">
-        <div className="hero-copy">
-          <h1>Turn engineering ideas<br />into <em>executable projects.</em></h1>
-          <p>ProjectPilot analyzes requirements, designs system architecture, plans implementation, reviews engineering risks, and continuously identifies what your team should do next.</p>
-          <div className="hero-actions">
-            <Button onClick={() => navigate('/new-project')} icon={Plus}>Create a Project</Button>
-            <Button secondary onClick={() => navigate('/project/smart-helmet')} icon={Play}>Explore Demo Project</Button>
+    <main className="landing" style={{ position: 'relative' }}>
+      <div className="marketing-nav-wrap">
+        <header className="marketing-nav">
+          <Logo />
+          <nav>
+            <a href="#agents">Agents</a>
+            <a href="#capabilities">Capabilities</a>
+            <a href="#workflow">Architecture</a>
+          </nav>
+          <div className="marketing-actions">
+            {user ? <Button secondary onClick={() => navigate('/project/smart-helmet')}>Workspace</Button> : <Button secondary onClick={() => navigate('/login')}>Sign In</Button>}
+            <Button onClick={() => navigate(user ? '/new-project' : '/signup')} icon={ArrowRight}>
+              {user ? 'Launch Workspace' : 'Create Account'}
+            </Button>
+            {user && <Link to="/profile" className="nav-profile-badge" title="View Profile"><Avatar user={user} /></Link>}
           </div>
-        </div>
-        <Preview />
-      </section>
+        </header>
+      </div>
+
+      <AetherHero
+        title={<>Turn engineering ideas<br />into <em style={{ fontStyle: 'italic', color: '#a7ff52' }}>executable projects.</em></>}
+        subtitle="ProjectPilot analyzes requirements, designs system architecture, plans implementation, reviews engineering risks, and continuously identifies what your team should do next."
+        ctaLabel="Create a Project"
+        onCtaClick={() => navigate('/new-project')}
+        secondaryCtaLabel="Explore Demo Project"
+        onSecondaryCtaClick={() => navigate('/project/smart-helmet')}
+        align="left"
+        overlayGradient="linear-gradient(105deg, #000000d9 0%, #00000099 35%, #00000044 65%, transparent 90%)"
+        height="100vh"
+      />
 
       <EngineeringAgentsSection />
 
       <CapabilitiesSection />
 
-      <section className="section technology-section">
-        <SectionIntro title="Built on an open AI stack designed for agentic engineering." />
+      <section className="section technology-section" id="workflow" style={{ background: 'radial-gradient(800px 400px at 80% 50%, rgba(92,229,245,0.04) 0%, transparent 70%)' }}>
+        <SectionIntro
+          eyebrow="TECHNOLOGY STACK"
+          title={<>Built on an open AI stack<br />designed for <em>agentic engineering.</em></>}
+        />
         <div className="technology-cards">
           <TechnologyCard title="NVIDIA Nemotron" label="AI REASONING" icon={BrainCircuit} text="Powers ProjectPilot's specialized engineering agents for requirements analysis, architecture reasoning, project review, risk identification, planning, and verification." capabilities={['Requirement reasoning', 'Architecture analysis', 'Engineering review', 'Risk detection', 'Test generation']} />
           <TechnologyCard title="Nebius Token Factory" label="AI INFRASTRUCTURE" icon={Cloud} text="Provides the inference layer used by ProjectPilot to access NVIDIA Nemotron models and execute AI workflows." capabilities={['Model access', 'Inference', 'Agent requests', 'Scalable AI execution']} />
@@ -76,13 +82,19 @@ function Landing() {
       </section>
 
       <section className="section workflow" id="workflow">
-        <SectionIntro title="From raw thought to a buildable system." />
+        <SectionIntro eyebrow="HOW IT WORKS" title={<>From raw thought to a <em>buildable system.</em></>} />
         <div className="workflow-line">
-          {['IDEA', 'REQUIREMENTS', 'ARCHITECTURE', 'EXECUTION PLAN', 'REVIEW', 'VALIDATION'].map((step, i) => (
-            <div className="workflow-step" key={step}>
-              <span>0{i + 1}</span>
-              <b>{step}</b>
-              {i < 5 && <ChevronRight className="workflow-arrow" size={18} />}
+          {[
+            { step: '01', label: 'IDEA' },
+            { step: '02', label: 'REQUIREMENTS' },
+            { step: '03', label: 'ARCHITECTURE' },
+            { step: '04', label: 'EXECUTION PLAN' },
+            { step: '05', label: 'REVIEW' },
+            { step: '06', label: 'VALIDATION' },
+          ].map(({ step, label }) => (
+            <div className="workflow-step" key={label}>
+              <span>{step}</span>
+              <b>{label}</b>
             </div>
           ))}
         </div>
@@ -126,8 +138,34 @@ function Landing() {
   )
 }
 
-function SectionIntro({ eyebrow, title, text }: { eyebrow?: string; title: string; text?: string }) { return <div className="section-intro">{eyebrow && <span className="eyebrow">{eyebrow}</span>}<h2>{title}</h2>{text && <p>{text}</p>}</div> }
-function TechnologyCard({ title, label, text, capabilities, icon: Icon }: { title: string; label: string; text: string; capabilities: string[]; icon: Icon }) { return <article className="technology-card panel"><div className="technology-card-head"><span className="icon-box"><Icon size={20} /></span><div><span className="eyebrow">{label}</span><h3>{title}</h3></div></div><p>{text}</p><div className="capability-list">{capabilities.map(capability => <span key={capability}><Check size={12} />{capability}</span>)}</div><TechnologyBadge compact /></article> }
+function SectionIntro({ eyebrow, title, text }: { eyebrow?: string; title: React.ReactNode; text?: string }) {
+  return (
+    <div className="section-intro">
+      {eyebrow && <span className="eyebrow">{eyebrow}</span>}
+      <h2>{title}</h2>
+      {text && <p>{text}</p>}
+    </div>
+  )
+}
+function TechnologyCard({ title, label, text, capabilities, icon: Icon }: { title: string; label: string; text: string; capabilities: string[]; icon: Icon }) {
+  return (
+    <article className="technology-card">
+      <div className="technology-card-head">
+        <span className="icon-box"><Icon size={20} /></span>
+        <div>
+          <span style={{ fontFamily: 'var(--mono)', fontSize: '9px', letterSpacing: '0.12em', color: 'var(--lime)', opacity: 0.8 }}>{label}</span>
+          <h3>{title}</h3>
+        </div>
+      </div>
+      <p>{text}</p>
+      <div className="capability-list">
+        {capabilities.map(capability => <span key={capability}><Check size={12} />{capability}</span>)}
+      </div>
+      <TechnologyBadge compact />
+    </article>
+  )
+}
+
 function WorkspaceProfile() { const { user, logout } = useAuth(); const navigate = useNavigate();
 
  if (!user) return <Link className="avatar" to="/login">?</Link>; return <ProfileMenu user={user} onLogout={() => { logout(); navigate('/') }} /> }
@@ -252,7 +290,20 @@ function ProjectShell({ children, project }: { children: React.ReactNode; projec
             <Menu size={20} />
           </button>
           <div className="breadcrumbs">
-            <span>Projects</span>
+            <button
+              type="button"
+              className="breadcrumb-link"
+              onClick={() => {
+                if (window.history.length > 1) {
+                  navigate(-1)
+                } else {
+                  navigate('/')
+                }
+              }}
+              title="Go back to previous page"
+            >
+              Projects
+            </button>
             <ChevronRight size={14} />
             <b>{project.name}</b>
           </div>
