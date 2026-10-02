@@ -6,13 +6,26 @@ import time
 from pydantic import ValidationError
 
 from app.ai.nebius_client import NebiusResponse, nebius_client
+from app.ai.quality_guard import quality_guard
 from app.schemas import ProjectContext, RequirementAnalysis
 
 SYSTEM_PROMPT = """You are the Requirement Agent inside ProjectPilot AI.
 
-Your responsibility is to transform a raw engineering project idea into technically meaningful, structured engineering requirements.
+Your responsibility is to transform a raw engineering project idea into technically meaningful, project-specific, structured engineering requirements.
 
-Analyze only the supplied project information. Do not invent unsupported facts. If important information is missing, represent it as an assumption or open question.
+Analyze only the supplied project information. Ground every requirement directly in the project's actual domain, objective, technologies, materials, sensors, actuators, protocols, and constraints.
+Do not invent technologies that were not supplied or reasonably required.
+Do NOT use generic placeholder phrasing such as "core system", "primary workflow", "input interface", "process data", or "manage operations". Instead, explicitly name the specific physical hardware, software frameworks, protocols, and data structures involved.
+
+To optimize processing, you MUST strictly adhere to the following limits:
+- Maximum 5 functional_requirements
+- Maximum 4 non_functional_requirements
+- Maximum 3 assumptions
+- Maximum 3 open_questions
+- Keep all descriptions concise and directly to the point
+- Ensure functional requirements specify concrete actions, hardware/software interactions, and measurable engineering targets (e.g. latency, throughput, payload format, physical tolerances)
+- Open questions must address concrete, unresolved project-specific engineering decisions (e.g., protocol choices, power budgets, sensor calibration), not vague questions
+- Do not provide long explanations or markdown text outside the JSON
 
 Return exactly ONE valid JSON object.
 Do not include markdown.
@@ -21,22 +34,14 @@ Do not include explanations before the JSON.
 Do not include explanations after the JSON.
 The first character of your final answer must be { and the last character must be }.
 
-To optimize processing, you MUST strictly adhere to the following limits:
-- Maximum 5 functional_requirements
-- Maximum 4 non_functional_requirements
-- Maximum 3 assumptions
-- Maximum 3 open_questions
-- Keep all descriptions concise and directly to the point
-- Do not provide long explanations or markdown text outside the JSON
-
 Use exactly this JSON shape:
 {
   "problem": "Clear interpretation of the engineering problem",
-  "functional_requirements": [{"title": "Requirement title", "description": "Clear engineering requirement", "priority": "critical|high|medium|low"}],
-  "non_functional_requirements": [{"title": "Requirement title", "description": "Clear engineering requirement", "priority": "critical|high|medium|low"}],
+  "functional_requirements": [{"title": "Concrete requirement title", "description": "Specific engineering requirement referencing actual components/interfaces", "priority": "critical|high|medium|low"}],
+  "non_functional_requirements": [{"title": "Concrete requirement title", "description": "Measurable technical requirement with specific targets", "priority": "critical|high|medium|low"}],
   "constraints": ["constraint"],
   "assumptions": ["assumption"],
-  "open_questions": ["question"]
+  "open_questions": ["project-specific technical question"]
 }
 """
 
@@ -99,6 +104,29 @@ class RequirementAgent:
             result = self._parse(response, "retry")
         if result is None:
             raise RuntimeError("Requirement Agent returned invalid structured JSON")
+
+        # Quality Guard Check & at most ONE corrective regeneration
+        issues = quality_guard.validate_requirements(result)
+        if issues:
+            correction_prompt = quality_guard.build_correction_prompt("Requirement Agent", issues, response.content)
+            corr_response = nebius_client.generate(
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": prompt},
+                    {"role": "assistant", "content": response.content},
+                    {"role": "user", "content": correction_prompt},
+                ],
+                response_format={"type": "json_object"},
+                enable_thinking=False,
+                max_tokens=4000,
+            )
+            corr_result = self._parse(corr_response, "correction")
+            if corr_result is not None:
+                remaining_issues = quality_guard.validate_requirements(corr_result)
+                if remaining_issues:
+                    print(f"[Quality Guard Warning] Requirement Agent retained generic elements after correction: {remaining_issues}")
+                result = corr_result
+
         return result, round((time.perf_counter() - started) * 1000)
 
     def _parse(self, response: NebiusResponse, attempt: str) -> RequirementAnalysis | None:

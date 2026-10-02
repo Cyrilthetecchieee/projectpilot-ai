@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   ArrowRight,
@@ -15,6 +15,8 @@ import {
 } from 'lucide-react'
 import type { Project } from '../types'
 import { TaskExecutionModal } from './TaskExecutionModal'
+import { OrchestratorPanel } from './OrchestratorPanel'
+import { agentService } from '../services/agentService'
 import './OverviewView.css'
 
 interface OverviewViewProps {
@@ -25,6 +27,25 @@ interface OverviewViewProps {
 export function OverviewView({ project, refresh }: OverviewViewProps) {
   const navigate = useNavigate()
   const [taskModalOpen, setTaskModalOpen] = useState(false)
+  const [orchOpen, setOrchOpen] = useState(false)
+
+  useEffect(() => {
+    agentService
+      .getOrchestratorStatus(project.id)
+      .then(status => {
+        if (
+          status &&
+          (status.is_running ||
+            status.state === 'RUNNING' ||
+            status.state === 'PAUSED' ||
+            status.state === 'FAILED')
+        ) {
+          setOrchOpen(true)
+        }
+      })
+      .catch(() => {})
+  }, [project.id])
+
   // Calculations
   const completedTasks = project.tasks.filter(t => t.status === 'Completed').length
   const totalTasks = project.tasks.length
@@ -73,7 +94,16 @@ export function OverviewView({ project, refresh }: OverviewViewProps) {
           </div>
         </div>
 
-        <div className="header-right-actions">
+        <div className="header-right-actions" style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            type="button"
+            className="btn-run-autonomous"
+            onClick={() => setOrchOpen(prev => !prev)}
+            title="Run all agents autonomously"
+          >
+            <Sparkles size={15} />
+            Run Autonomously
+          </button>
           <button
             type="button"
             className="btn-primary-plan"
@@ -84,6 +114,17 @@ export function OverviewView({ project, refresh }: OverviewViewProps) {
           </button>
         </div>
       </div>
+
+      {/* Autonomous Orchestrator Panel */}
+      {orchOpen && (
+        <div style={{ marginBottom: '24px' }}>
+          <OrchestratorPanel
+            projectId={project.id}
+            onClose={() => setOrchOpen(false)}
+            refreshWorkspace={refresh}
+          />
+        </div>
+      )}
 
       {/* 2. Executive KPI Ribbon */}
       <div className="overview-kpi-ribbon">

@@ -1,0 +1,31 @@
+{
+  "MEM-001": {
+    "memory_id": "MEM-001",
+    "source_project_id": "project-a",
+    "source_issue_id": "ISS-001",
+    "created_at": "2026-09-25T15:43:51.413337+00:00",
+    "category": "architecture",
+    "problem_pattern": "ESP32 Wi-Fi telemetry loss during intermittent connectivity",
+    "context_tags": [],
+    "technologies": [
+      "ESP32",
+      "SPIFFS",
+      "MQTT",
+      "Wi-Fi"
+    ],
+    "affected_component_types": [
+      "hardware",
+      "software"
+    ],
+    "diagnosis": "ESP32 loses Wi-Fi connection during field operation; telemetry data lost",
+    "successful_action": "Implemented persistent local SPIFFS buffer with automatic upload retry",
+    "verification_summary": "Verified 24h field test with 12 Wi-Fi drops - zero data loss",
+    "requirement_patterns": [],
+    "architecture_patterns": [],
+    "risk_patterns": [],
+    "confidence": 1.0,
+    "times_retrieved": 2,
+    "times_helpful": 4,
+    "status": "ACTIVE"
+  }
+}

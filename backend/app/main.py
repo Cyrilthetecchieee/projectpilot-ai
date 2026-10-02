@@ -1,7 +1,13 @@
 import json
 import os
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
+
+# Ensure 'backend' directory is in sys.path so 'import app...' works from any working directory
+_backend_dir = str(Path(__file__).resolve().parent.parent)
+if _backend_dir not in sys.path:
+    sys.path.insert(0, _backend_dir)
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,7 +38,12 @@ from app.schemas import (
     OrchestratorRun,
     OrchestratorState,
     DecisionRecord,
+    HumanDecisionInput,
+    EngineeringMemory,
+    RetrievedMemory,
+    MemoryFeedbackInput,
 )
+from app.services.memory_service import memory_service
 
 app = FastAPI(title="ProjectPilot AI Backend", version="0.1.0")
 app.add_middleware(
@@ -124,6 +135,7 @@ def _load_db() -> None:
         if "activity_store" in data:
             for k, v in data["activity_store"].items():
                 activity_store[k] = v
+        memory_service.load()
     except Exception as e:
         print(f"Failed to load db: {e}")
 
@@ -143,6 +155,7 @@ def _save_db() -> None:
         }
         with open(DB_FILE, "w", encoding="utf-8") as f:
             json.dump(data, f)
+        memory_service.save()
     except Exception as e:
         print(f"Failed to save db: {e}")
     _save_storage()
@@ -350,8 +363,9 @@ def generate_review(project_id: str, request: ReviewRequest) -> ReviewResponse:
         raise HTTPException(status_code=409, detail={"code": "ARCHITECTURE_REQUIRED", "message": "Generate project architecture before generating a review."})
     
     projects[project_id] = request.project
+    plan = plan_store.get(project_id)
     try:
-        analysis, duration_ms = reviewer_agent.analyze(request.project, requirements, architecture)
+        analysis, duration_ms = reviewer_agent.analyze(request.project, requirements, architecture, plan=plan)
     except AuthenticationError as error:
         raise HTTPException(status_code=502, detail="Nebius authentication failed") from error
     except RateLimitError as error:
@@ -577,250 +591,140 @@ async def report_issue(project_id: str, project_data: str = Form(...), task_id: 
 import asyncio
 import uuid
 import datetime
-
-MAX_EXECUTIONS = 10
-MAX_CORRECTIONS = 2
-
-async def orchestrator_loop(project_id: str):
-    run = orchestrator_store.get(project_id)
-    if not run: return
-    
-    while run.is_running and not run.human_input_required:
-        project = projects.get(project_id)
-        if not project:
-            run.error_message = "Project context missing."
-            run.state = OrchestratorState.FAILED
-            run.is_running = False
-            break
-            
-        if run.execution_count >= MAX_EXECUTIONS:
-            run.human_input_required = True
-            run.human_input_reason = "Maximum autonomous executions reached. Please review the project."
-            run.state = OrchestratorState.PAUSED
-            run.is_running = False
-            break
-
-        # Evaluate State
-        reqs = requirements_store.get(project_id)
-        arch = architecture_store.get(project_id)
-        plan = plan_store.get(project_id)
-        review = review_store.get(project_id)
-        tests = test_store.get(project_id)
-        issues = issues_store.get(project_id, [])
-        
-        # Check for blocking issues
-        open_critical_issues = [i for i in issues if i.status != "Resolved" and i.analysis.severity.lower() in ["critical", "high"]]
-        if open_critical_issues:
-            run.state = OrchestratorState.BLOCKED
-            run.human_input_required = True
-            run.human_input_reason = f"Blocked by critical unresolved issue: {open_critical_issues[0].analysis.issue_summary}"
-            run.is_running = False
-            break
-
-        prev_state = run.state.value
-
-        # Decision Engine
-        if not reqs:
-            run.state = OrchestratorState.REQUIREMENTS_PENDING
-            action = "Run Requirement Agent"
-            agent = "Requirement Agent"
-            reason = "No requirement artifact exists."
-        elif not arch:
-            run.state = OrchestratorState.ARCHITECTURE_PENDING
-            action = "Run Architecture Agent"
-            agent = "Architecture Agent"
-            reason = "Requirements validated successfully. Architecture missing."
-        elif not plan:
-            run.state = OrchestratorState.PLANNING_PENDING
-            action = "Run Planner Agent"
-            agent = "Planner Agent"
-            reason = "Architecture available and valid. Execution plan missing."
-        elif not review:
-            run.state = OrchestratorState.REVIEW_PENDING
-            action = "Run Reviewer Agent"
-            agent = "Reviewer Agent"
-            reason = "Execution plan generated. Review pending."
-        elif not tests:
-            run.state = OrchestratorState.TESTING_PENDING
-            action = "Run Test Agent"
-            agent = "Test Agent"
-            reason = "Project reviewed successfully. Tests missing."
-        else:
-            run.state = OrchestratorState.READY
-            run.is_running = False
-            run.current_agent = ""
-            run.current_action = ""
-            run.progress_steps = ["Project is ready for execution"]
-            dec = DecisionRecord(id=uuid.uuid4().hex[:8], timestamp=datetime.datetime.utcnow().isoformat(), previous_state=prev_state, next_state=run.state.value, action="Complete", agent="System", reason="All stages complete.", result="Success")
-            run.decisions.insert(0, dec)
-            _save_db()
-            break
-
-        if run.state.value == prev_state and run.execution_count > 0:
-            # We are stuck in a loop without progressing
-            run.human_input_required = True
-            run.human_input_reason = f"Agent {agent} failed to advance the state."
-            run.state = OrchestratorState.PAUSED
-            run.is_running = False
-            break
-
-        run.current_agent = agent
-        run.current_action = action
-        run.progress_steps = [f"Starting {agent}"]
-        dec = DecisionRecord(
-            id=uuid.uuid4().hex[:8],
-            timestamp=datetime.datetime.utcnow().isoformat(),
-            previous_state=prev_state,
-            next_state=run.state.value,
-            action=action,
-            agent=agent,
-            reason=reason
-        )
-        run.decisions.insert(0, dec)
-        _save_db()
-
-        activity_store.setdefault(project_id, []).insert(0, {
-            "agent": "Orchestrator",
-            "action": f"Selected {agent}",
-            "provider": "System Decision",
-            "model": "Rules Engine",
-            "status": "completed",
-            "duration_ms": 10,
-            "summary": reason,
-        })
-
-        # Execute Agent
-        run.execution_count += 1
-        try:
-            if agent == "Requirement Agent":
-                analysis, duration = requirement_agent.analyze(project)
-                requirements_store[project_id] = analysis
-                run.progress_steps = ["Analyzed requirements", "Persisted artifacts"]
-                
-            elif agent == "Architecture Agent":
-                analysis, duration = architecture_agent.analyze(project, reqs)
-                architecture_store[project_id] = analysis
-                run.progress_steps = ["Generated architecture components", "Mapped dependencies"]
-                
-            elif agent == "Planner Agent":
-                analysis, duration = planner_agent.analyze(project, reqs, arch)
-                plan_store[project_id] = analysis
-                run.progress_steps = ["Formulated execution tasks", "Identified milestones"]
-                
-            elif agent == "Reviewer Agent":
-                analysis, duration = reviewer_agent.analyze(project, reqs, arch)
-                review_store[project_id] = analysis
-                
-                # Reviewer Feedback Loop Check
-                critical_risks = [r for r in analysis.risks if r.severity.lower() in ["critical", "high"]]
-                if critical_risks:
-                    run.correction_cycles += 1
-                    if run.correction_cycles > MAX_CORRECTIONS:
-                        run.human_input_required = True
-                        run.human_input_reason = f"Reviewer found critical issues: {critical_risks[0].title}. Max corrections reached."
-                        run.state = OrchestratorState.PAUSED
-                        run.is_running = False
-                    else:
-                        # Invalidate previous steps based on reviewer logic (simplified: invalidate Plan)
-                        plan_store.pop(project_id, None)
-                        review_store.pop(project_id, None)
-                        run.progress_steps = ["Reviewer found issues", "Invalidated Plan for regeneration"]
-                else:
-                    run.progress_steps = ["Review completed successfully", "No blocking issues"]
-                    
-            elif agent == "Test Agent":
-                analysis, duration = test_agent.analyze(project, reqs, arch, plan=plan_store.get(project_id), review=review_store.get(project_id))
-                test_store[project_id] = analysis
-                run.progress_steps = ["Generated verification strategy"]
-
-            dec.result = "Success"
-            
-            # Log real agent execution
-            agent_provider = "Nebius Token Factory" if agent in ("Requirement Agent", "Architecture Agent", "Planner Agent", "Reviewer Agent", "Test Agent") else "NVIDIA"
-            agent_model = nebius_client.model if agent in ("Requirement Agent", "Architecture Agent", "Planner Agent", "Reviewer Agent", "Test Agent") else nvidia_client.model
-            activity_store.setdefault(project_id, []).insert(0, {
-                "agent": agent,
-                "action": f"Autonomous {action}",
-                "provider": agent_provider,
-                "model": agent_model,
-                "status": "completed",
-                "duration_ms": duration,
-                "summary": "Completed successfully via Orchestrator",
-            })
-            
-        except Exception as e:
-            dec.result = f"Failed: {str(e)}"
-            run.error_message = str(e)
-            run.state = OrchestratorState.FAILED
-            run.is_running = False
-            
-            # Log failure
-            agent_provider = "Nebius Token Factory" if agent in ("Requirement Agent", "Architecture Agent", "Planner Agent", "Reviewer Agent", "Test Agent") else "NVIDIA"
-            agent_model = nebius_client.model if agent in ("Requirement Agent", "Architecture Agent", "Planner Agent", "Reviewer Agent", "Test Agent") else nvidia_client.model
-            activity_store.setdefault(project_id, []).insert(0, {
-                "agent": agent,
-                "action": f"Autonomous {action}",
-                "provider": agent_provider,
-                "model": agent_model,
-                "status": "failed",
-                "duration_ms": 0,
-                "summary": str(e),
-            })
-            
-        _save_db()
-        await asyncio.sleep(1) # Small pause for UI polish and safety
-
-# Endpoints
 from fastapi import BackgroundTasks
+from app.services.orchestrator_service import OrchestratorService
 
-@app.post("/api/projects/{project_id}/orchestrator/start")
-def start_orchestrator(project_id: str, background_tasks: BackgroundTasks):
-    run = orchestrator_store.get(project_id)
-    if not run:
-        run = OrchestratorRun(project_id=project_id, state=OrchestratorState.INITIALIZED)
-        orchestrator_store[project_id] = run
-    
-    run.is_running = True
-    run.human_input_required = False
-    run.error_message = ""
-    run.state = OrchestratorState.INITIALIZED
-    _save_db()
-    
-    background_tasks.add_task(orchestrator_loop, project_id)
+orchestrator_service = OrchestratorService(
+    projects=projects,
+    requirements_store=requirements_store,
+    architecture_store=architecture_store,
+    plan_store=plan_store,
+    review_store=review_store,
+    test_store=test_store,
+    orchestrator_store=orchestrator_store,
+    activity_store=activity_store,
+    save_db_fn=_save_db,
+    now_iso_fn=_now_iso,
+    issues_store=issues_store,
+)
+
+@app.post("/api/projects/{project_id}/orchestrator/start", response_model=OrchestratorRun)
+def start_orchestrator(project_id: str, background_tasks: BackgroundTasks) -> OrchestratorRun:
+    try:
+        run = orchestrator_service.start(project_id)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    background_tasks.add_task(orchestrator_service.run_pipeline, project_id)
     return run
 
-@app.post("/api/projects/{project_id}/orchestrator/pause")
-def pause_orchestrator(project_id: str):
-    run = orchestrator_store.get(project_id)
-    if run:
-        run.is_running = False
-        run.state = OrchestratorState.PAUSED
-        _save_db()
+@app.post("/api/projects/{project_id}/orchestrator/retry", response_model=OrchestratorRun)
+def retry_orchestrator(project_id: str, background_tasks: BackgroundTasks) -> OrchestratorRun:
+    run = orchestrator_service.retry(project_id)
+    background_tasks.add_task(orchestrator_service.run_pipeline, project_id)
     return run
 
-@app.post("/api/projects/{project_id}/orchestrator/resume")
-def resume_orchestrator(project_id: str, background_tasks: BackgroundTasks):
-    run = orchestrator_store.get(project_id)
-    if run:
-        run.is_running = True
-        run.human_input_required = False
-        _save_db()
-        background_tasks.add_task(orchestrator_loop, project_id)
+@app.post("/api/projects/{project_id}/orchestrator/pause", response_model=OrchestratorRun)
+def pause_orchestrator(project_id: str) -> OrchestratorRun:
+    return orchestrator_service.stop(project_id)
+
+@app.post("/api/projects/{project_id}/orchestrator/resume", response_model=OrchestratorRun)
+def resume_orchestrator(project_id: str, background_tasks: BackgroundTasks) -> OrchestratorRun:
+    try:
+        run = orchestrator_service.start(project_id)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    background_tasks.add_task(orchestrator_service.run_pipeline, project_id)
     return run
 
-@app.post("/api/projects/{project_id}/orchestrator/stop")
-def stop_orchestrator(project_id: str):
-    run = orchestrator_store.get(project_id)
-    if run:
-        run.is_running = False
-        run.state = OrchestratorState.INITIALIZED
-        _save_db()
-    return run
+@app.post("/api/projects/{project_id}/orchestrator/stop", response_model=OrchestratorRun)
+def stop_orchestrator(project_id: str) -> OrchestratorRun:
+    return orchestrator_service.stop(project_id)
 
 @app.get("/api/projects/{project_id}/orchestrator/status", response_model=OrchestratorRun)
-def get_orchestrator_status(project_id: str):
+def get_orchestrator_status(project_id: str) -> OrchestratorRun:
+    return orchestrator_service.get_or_create_run(project_id)
+
+@app.post("/api/projects/{project_id}/orchestrator/provide-decision", response_model=OrchestratorRun)
+def provide_orchestrator_decision(
+    project_id: str,
+    payload: HumanDecisionInput,
+    background_tasks: BackgroundTasks,
+) -> OrchestratorRun:
+    run = orchestrator_service.provide_human_decision(project_id, payload.decision)
+    if run.active_issue_id:
+        background_tasks.add_task(orchestrator_service.run_issue_recovery_pipeline, project_id, run.active_issue_id)
+    return run
+
+@app.post("/api/projects/{project_id}/orchestrator/continue-manually", response_model=OrchestratorRun)
+def continue_orchestrator_manually(
+    project_id: str,
+    background_tasks: BackgroundTasks,
+) -> OrchestratorRun:
+    run = orchestrator_service.continue_manually(project_id)
+    background_tasks.add_task(orchestrator_service.run_pipeline, project_id)
+    return run
+
+@app.post("/api/projects/{project_id}/issues/{issue_id}/recover", response_model=OrchestratorRun)
+def recover_issue(
+    project_id: str,
+    issue_id: str,
+    background_tasks: BackgroundTasks,
+) -> OrchestratorRun:
+    try:
+        run = orchestrator_service.start_issue_recovery(project_id, issue_id)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    background_tasks.add_task(orchestrator_service.run_issue_recovery_pipeline, project_id, issue_id)
+    return run
+
+@app.post("/api/projects/{project_id}/orchestrator/confirm-intervention", response_model=OrchestratorRun)
+def confirm_orchestrator_intervention(
+    project_id: str,
+    background_tasks: BackgroundTasks,
+) -> OrchestratorRun:
+    run = orchestrator_service.confirm_manual_intervention(project_id)
+    if run.active_issue_id:
+        background_tasks.add_task(orchestrator_service.run_issue_recovery_pipeline, project_id, run.active_issue_id)
+    return run
+
+@app.post("/api/projects/{project_id}/orchestrator/retry-recovery", response_model=OrchestratorRun)
+def retry_orchestrator_recovery(
+    project_id: str,
+    background_tasks: BackgroundTasks,
+) -> OrchestratorRun:
+    run = orchestrator_service.retry_recovery(project_id)
+    if run.active_issue_id:
+        background_tasks.add_task(orchestrator_service.run_issue_recovery_pipeline, project_id, run.active_issue_id)
+    return run
+
+@app.post("/api/projects/{project_id}/orchestrator/stop-recovery", response_model=OrchestratorRun)
+def stop_orchestrator_recovery(project_id: str) -> OrchestratorRun:
+    return orchestrator_service.stop_recovery(project_id)
+
+
+# ---------------------------------------------------------------------------
+# Long-Term Engineering Memory Routes
+# ---------------------------------------------------------------------------
+
+@app.get("/api/projects/{project_id}/memory", response_model=list[RetrievedMemory])
+def get_project_memory(project_id: str) -> list[RetrievedMemory]:
     run = orchestrator_store.get(project_id)
     if not run:
-        run = OrchestratorRun(project_id=project_id, state=OrchestratorState.INITIALIZED)
-        orchestrator_store[project_id] = run
-    return run
+        return []
+    return run.retrieved_memories
+
+
+@app.get("/api/memory", response_model=list[EngineeringMemory])
+def get_all_memories() -> list[EngineeringMemory]:
+    return memory_service.get_all_memories()
+
+
+@app.post("/api/memory/{memory_id}/feedback", response_model=EngineeringMemory)
+def provide_memory_feedback(memory_id: str, payload: MemoryFeedbackInput) -> EngineeringMemory:
+    updated = memory_service.record_feedback(memory_id, payload.helpful)
+    if not updated:
+        raise HTTPException(status_code=404, detail=f"Engineering memory '{memory_id}' not found")
+    _save_db()
+    return updated
+
+

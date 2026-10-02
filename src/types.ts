@@ -106,7 +106,7 @@ export interface IssueRecord {
 }
 
 
-export type OrchestratorState = 'INITIALIZED' | 'REQUIREMENTS_PENDING' | 'REQUIREMENTS_COMPLETE' | 'ARCHITECTURE_PENDING' | 'ARCHITECTURE_COMPLETE' | 'PLANNING_PENDING' | 'PLANNING_COMPLETE' | 'REVIEW_PENDING' | 'REVIEW_COMPLETE' | 'TESTING_PENDING' | 'TESTING_COMPLETE' | 'READY' | 'PAUSED' | 'FAILED' | 'BLOCKED'
+export type OrchestratorState = 'IDLE' | 'RUNNING' | 'PAUSED' | 'FAILED' | 'COMPLETED' | 'INITIALIZED' | 'READY' | 'REQUIREMENTS_PENDING' | 'REQUIREMENTS_COMPLETE' | 'ARCHITECTURE_PENDING' | 'ARCHITECTURE_COMPLETE' | 'PLANNING_PENDING' | 'PLANNING_COMPLETE' | 'REVIEW_PENDING' | 'REVIEW_COMPLETE' | 'TESTING_PENDING' | 'TESTING_COMPLETE' | 'BLOCKED'
 
 export interface DecisionRecord {
   id: string;
@@ -120,17 +120,117 @@ export interface DecisionRecord {
   retry_count: number;
 }
 
+export interface InvalidationRecord {
+  timestamp: string;
+  trigger_stage: string;
+  invalidated_stages: string[];
+  reason: string;
+}
+
+export interface HumanDecisionPrompt {
+  question: string;
+  affected_stage: string;
+  evidence: string;
+  mitigation?: string;
+}
+
+export interface RecoveryRecord {
+  id: string;
+  issue_id: string;
+  timestamp: string;
+  classification: string;
+  target: string;
+  summary: string;
+  actions_taken: string[];
+  result: string;
+}
+
+export interface ManualInterventionPrompt {
+  issue_id: string;
+  likely_cause: string;
+  recommended_action: string;
+  affected_components: string[];
+  verification_required?: string;
+}
+
+export interface EngineeringMemory {
+  memory_id: string;
+  source_project_id: string;
+  source_issue_id?: string;
+  created_at: string;
+  category: string;
+  problem_pattern: string;
+  context_tags: string[];
+  technologies: string[];
+  affected_component_types: string[];
+  diagnosis: string;
+  successful_action: string;
+  verification_summary: string;
+  requirement_patterns: string[];
+  architecture_patterns: string[];
+  risk_patterns: string[];
+  confidence: number;
+  times_retrieved: number;
+  times_helpful: number;
+  status: string;
+}
+
+export interface RetrievedMemory {
+  memory: EngineeringMemory;
+  relevance_score: number;
+  reason_retrieved: string;
+  agent_used_by: string;
+}
+
 export interface OrchestratorRun {
   project_id: string;
   state: OrchestratorState;
-  current_agent: string;
-  current_action: string;
-  progress_steps: string[];
-  decisions: DecisionRecord[];
-  execution_count: number;
-  correction_cycles: number;
-  is_running: boolean;
-  human_input_required: boolean;
-  human_input_reason: string;
-  error_message: string;
+  current_stage?: string;
+  completed_stages?: string[];
+  failed_stage?: string;
+  last_error?: string;
+  started_at?: string;
+  completed_at?: string;
+  current_agent?: string;
+  current_action?: string;
+  progress_steps?: string[];
+  decisions?: DecisionRecord[];
+  execution_count?: number;
+  correction_cycles?: number;
+  is_running?: boolean;
+  human_input_required?: boolean;
+  human_input_reason?: string;
+  error_message?: string;
+
+  // Phase 2 additions
+  review_iteration?: number;
+  correction_count?: number;
+  max_corrections?: number;
+  correction_target?: string;
+  review_decision?: string;
+  unresolved_findings?: Array<{
+    title: string;
+    severity: string;
+    detail: string;
+    recommendation: string;
+  }>;
+  invalidation_history?: InvalidationRecord[];
+  human_decision_prompt?: HumanDecisionPrompt;
+
+  // Phase 3 additions
+  active_issue_id?: string;
+  recovery_state?: string;
+  recovery_type?: string;
+  recovery_target?: string;
+  recovery_attempt?: number;
+  max_recovery_attempts?: number;
+  manual_intervention_required?: boolean;
+  manual_intervention_completed?: boolean;
+  human_decision_response?: string;
+  manual_intervention_prompt?: ManualInterventionPrompt;
+  recovery_history?: RecoveryRecord[];
+
+  // Long-Term Engineering Memory
+  retrieved_memories?: RetrievedMemory[];
 }
+

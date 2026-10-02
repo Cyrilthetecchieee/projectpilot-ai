@@ -34,7 +34,7 @@ class NebiusClient:
         if not self.model:
             raise RuntimeError("NEBIUS_MODEL is not configured in backend/.env")
         if self._client is None or self._client.api_key != self.api_key or str(self._client.base_url) != self.base_url:
-            self._client = OpenAI(base_url=self.base_url, api_key=self.api_key)
+            self._client = OpenAI(base_url=self.base_url, api_key=self.api_key, timeout=120.0, max_retries=2)
         return self._client
 
     def generate(

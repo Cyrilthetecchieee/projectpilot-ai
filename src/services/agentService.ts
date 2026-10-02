@@ -1,4 +1,4 @@
-import type { ArchitectureComponent, ArchitectureConnection, ArchitectureDataFlow, ArchitectureDecision, Milestone, Project, Requirement, Risk, Task, TestCase } from '../types'
+import type { ArchitectureComponent, ArchitectureConnection, ArchitectureDataFlow, ArchitectureDecision, Milestone, Project, Requirement, RetrievedMemory, Risk, Task, TestCase } from '../types'
 import { apiKeyService } from './apiKeyService'
 
 const wait = (ms = 850) => new Promise(resolve => setTimeout(resolve, ms))
@@ -251,6 +251,11 @@ export const agentService = {
     if (!res.ok) throw new Error('Failed to start');
     return res.json();
   },
+  async retryOrchestrator(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/retry`, { method: 'POST' });
+    if (!res.ok) throw new Error('Failed to retry');
+    return res.json();
+  },
   async pauseOrchestrator(projectId: string): Promise<any> {
     const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/pause`, { method: 'POST' });
     if (!res.ok) throw new Error('Failed to pause');
@@ -264,6 +269,50 @@ export const agentService = {
   async stopOrchestrator(projectId: string): Promise<any> {
     const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/stop`, { method: 'POST' });
     if (!res.ok) throw new Error('Failed to stop');
+    return res.json();
+  },
+  async provideHumanDecision(projectId: string, decision: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/provide-decision`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision }),
+    });
+    if (!res.ok) throw new Error('Failed to submit human decision');
+    return res.json();
+  },
+  async continueOrchestratorManually(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/continue-manually`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to continue manually');
+    return res.json();
+  },
+  async recoverIssue(projectId: string, issueId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/issues/${encodeURIComponent(issueId)}/recover`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to start issue recovery');
+    return res.json();
+  },
+  async confirmManualIntervention(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/confirm-intervention`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to confirm manual intervention');
+    return res.json();
+  },
+  async retryRecovery(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/retry-recovery`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to retry recovery');
+    return res.json();
+  },
+  async stopRecovery(projectId: string): Promise<any> {
+    const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/orchestrator/stop-recovery`, {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to stop recovery');
     return res.json();
   },
   async analyzeIssue(project: Project, taskId: string, description: string, imageFile?: File): Promise<any> {
@@ -293,6 +342,15 @@ export const agentService = {
     if (keyToValidate) apiKeyService.validateApiKey(keyToValidate)
     await wait(500)
     return { id: `T-${Date.now()}`, title: `Define fallback states for ${risk.title.toLowerCase()}`, milestone: 'Requirements & Design', priority: risk.severity, status: 'Pending', dependency: 'Safety state model', successCriteria: risk.recommendation }
+  },
+  async getProjectMemory(projectId: string): Promise<RetrievedMemory[]> {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/projects/${encodeURIComponent(projectId)}/memory`);
+      if (!res.ok) return [];
+      return await res.json() as RetrievedMemory[];
+    } catch {
+      return [];
+    }
   },
 }
 
